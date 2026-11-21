@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Indicator Catalog</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--s1:#1c1c1e;--s2:#2c2c2e;--s3:#3a3a3c;--ln:rgba(255,255,255,.09);--t2:rgba(235,235,245,.62);--t3:rgba(235,235,245,.34);--bl:#0a84ff;--up:#30d158}
+*{box-sizing:border-box}
+.ph{width:390px;height:844px;background:#000;position:relative;overflow:hidden;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,"Geist",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+.ph button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
+.num{font-family:"Geist Mono","SF Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;align-items:center}
+.seg{display:flex;background:var(--s1);border-radius:10px;padding:2px}
+.seg button{flex:1;height:32px;border-radius:8px;font-size:13px;font-weight:600;color:var(--t2)}
+.seg button.on{background:var(--s3);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tg{width:51px;height:31px;border-radius:16px;background:var(--s3);position:relative;flex:none}
+.tg:after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tg.on{background:var(--up)}.tg.on:after{left:22px}
+.tile{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.it{background:var(--s1);border-radius:20px;padding:14px;display:flex;align-items:center;gap:12px}
+.chip{height:30px;padding:0 12px;border-radius:15px;background:var(--s2);font-size:13px;font-weight:600;display:inline-flex;align-items:center;color:#fff}
+.chip.on{background:rgba(10,132,255,.2);color:#4da3ff}
+.st{width:32px;height:32px;border-radius:16px;background:var(--s2);display:flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div class="ph">
+  <div style="position:absolute;left:0;right:0;top:0;height:60px;background:linear-gradient(180deg,#1b1b1e,#000)"></div>
+  <div style="position:absolute;left:0;right:0;top:46px;bottom:0;background:#0c0c0e;border-radius:34px 34px 0 0;border-top:1px solid rgba(255,255,255,.1);box-shadow:0 -20px 60px rgba(0,0,0,.6);padding:8px 16px 0;overflow:hidden">
+    <div style="width:36px;height:5px;border-radius:3px;background:var(--s3);margin:0 auto 12px"></div>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:28px;font-weight:700;letter-spacing:-.03em">Indicators</div>
+      <button style="height:34px;padding:0 16px;border-radius:17px;background:var(--bl);font-size:15px;font-weight:600">Done</button>
+    </div>
+    <div class="seg" style="margin-bottom:14px"><button class="on">All</button><button>Overlays</button><button>Oscillators</button></div>
+
+    <div class="col" style="display:flex;flex-direction:column;gap:8px">
+
+      <div class="it" style="flex-direction:column;align-items:stretch;gap:14px;padding:14px 14px 16px">
+        <div class="row" style="gap:12px">
+          <div class="tile" style="background:rgba(191,90,242,.18);color:#d58cf7"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 15c3 0 3-8 6-8s3 10 6 10 3-6 6-6"></path></svg></div>
+          <div style="flex:1"><div style="font-size:17px;font-weight:600">RSI</div><div class="num" style="font-size:12px;color:var(--t2)">Period 14 · Wilder RMA · Sub-panel</div></div>
+          <button class="tg on" aria-label="RSI"></button>
+        </div>
+        <div class="row" style="justify-content:space-between"><span style="font-size:15px">Period</span><div class="row" style="gap:12px"><button class="st" aria-label="Decrease"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M5 12h14"></path></svg></button><span class="num" style="font-size:17px;font-weight:600;width:26px;text-align:center">14</span><button class="st" aria-label="Increase"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"></path></svg></button></div></div>
+        <div class="seg" style="background:#000"><button class="on">Wilder RMA</button><button>EMA</button></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap"><span class="chip on">Crosses above 30</span><span class="chip">Crosses below 70</span><span class="chip">Centerline 50</span><span class="chip">Turning up</span></div>
+        <button style="height:44px;border-radius:13px;background:rgba(10,132,255,.16);color:#4da3ff;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Create alert from RSI</button>
+      </div>
+
+      <div class="it"><div class="tile" style="background:rgba(10,132,255,.18);color:#4da3ff"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 18V8M9 18v-6M14 18V6M19 18v-9"></path></svg></div><div style="flex:1"><div style="font-size:17px;font-weight:600">MACD</div><div class="num" style="font-size:12px;color:var(--t2)">12 · 26 · 9 · Histogram</div></div><button class="tg on" aria-label="MACD"></button></div>
+
+      <div class="it"><div class="tile" style="background:rgba(255,214,10,.16);color:#ffd60a"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 16c4 0 5-9 9-9s5 8 9 8"></path></svg></div><div style="flex:1"><div style="font-size:17px;font-weight:600">Moving Averages</div><div class="row num" style="font-size:12px;color:var(--t2);gap:8px"><i style="width:8px;height:8px;border-radius:4px;background:#ffd60a;display:block"></i>EMA 8<i style="width:8px;height:8px;border-radius:4px;background:#0a84ff;display:block"></i>EMA 21</div></div><button class="tg on" aria-label="Moving averages"></button></div>
+
+      <div class="it"><div class="tile" style="background:rgba(191,90,242,.18);color:#d58cf7"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 8c4 0 5-3 9-3s5 3 9 3M3 16c4 0 5 3 9 3s5-3 9-3M3 12h18"></path></svg></div><div style="flex:1"><div style="font-size:17px;font-weight:600">Bollinger Bands</div><div class="num" style="font-size:12px;color:var(--t2)">20 · 2.0σ · Squeeze alerts</div></div><button class="tg" aria-label="Bollinger"></button></div>
+
+      <div class="it"><div class="tile" style="background:rgba(100,210,255,.16);color:#64d2ff"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9c3 0 3 6 6 6s3-8 6-8 3 6 6 6M3 20h18"></path></svg></div><div style="flex:1"><div style="font-size:17px;font-weight:600">Stochastic</div><div class="num" style="font-size:12px;color:var(--t2)">%K 14 · Slow 3 · %D 3</div></div><button class="tg" aria-label="Stochastic"></button></div>
+
+      <div class="it"><div class="tile" style="background:rgba(48,209,88,.16);color:#43e06a"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 16l5-4 4 3 4-5 5 3"></path><path d="M3 20h18"></path></svg></div><div style="flex:1"><div style="font-size:17px;font-weight:600">Supertrend</div><div class="num" style="font-size:12px;color:var(--t2)">ATR 10 · ×3.0 · Flip alerts</div></div><button class="tg on" aria-label="Supertrend"></button></div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

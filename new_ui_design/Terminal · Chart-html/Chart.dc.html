@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terminal Chart</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--s1:#1c1c1e;--s2:#2c2c2e;--s3:#3a3a3c;--ln:rgba(255,255,255,.09);--t2:rgba(235,235,245,.62);--t3:rgba(235,235,245,.34);--bl:#0a84ff;--up:#30d158;--dn:#ff453a;--am:#ff9f0a;--pu:#bf5af2}
+*{box-sizing:border-box}
+.ph{width:390px;height:844px;background:#000;position:relative;overflow:hidden;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,"Geist",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+.ph button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
+.num{font-family:"Geist Mono","SF Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;align-items:center}
+.ib{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:rgba(44,44,46,.66);border:1px solid rgba(255,255,255,.09);flex:none}
+.chip{height:30px;padding:0 12px;border-radius:15px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;color:var(--t2);flex:none}
+.chip.on{background:#fff;color:#000}
+.bd{height:22px;padding:0 8px;border-radius:11px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.tb{position:absolute;left:14px;right:14px;bottom:22px;height:66px;border-radius:33px;display:flex;padding:0 8px;align-items:center;background:rgba(44,44,46,.7);backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.09)}
+.tb button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--t2);height:54px;justify-content:center;border-radius:27px}
+.tb button.on{color:var(--bl);background:rgba(10,132,255,.14)}
+.cd{position:absolute;width:5px}
+.cd i{position:absolute;left:50%;top:0;bottom:0;width:1.5px;margin-left:-.75px}
+.cd b{position:absolute;left:0;right:0;border-radius:1.5px}
+.gl{position:absolute;left:0;width:336px;height:1px;background:rgba(255,255,255,.05)}
+.ax{position:absolute;left:342px;font-size:10px;color:var(--t2);transform:translateY(-50%)}
+</style>
+</helmet>
+<div class="ph">
+  <div style="height:58px"></div>
+
+  <div class="row" style="justify-content:space-between;padding:0 16px;height:86px;align-items:flex-start">
+    <div>
+      <button class="row" style="gap:8px;height:30px;padding:0 12px 0 5px;border-radius:15px;background:rgba(44,44,46,.66);border:1px solid rgba(255,255,255,.09)">
+        <span style="width:22px;height:22px;border-radius:11px;background:rgba(10,132,255,.25);color:#4da3ff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">EU</span>
+        <span style="font-size:15px;font-weight:600">EUR/USD</span>
+        <svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--t2)"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <div class="row" style="gap:10px;margin-top:8px;align-items:baseline">
+        <span class="num" style="font-size:38px;font-weight:600;letter-spacing:-.04em;line-height:1">1.08548</span>
+        <span class="num" style="font-size:14px;font-weight:500;color:#43e06a">+0.00132 · +0.12%</span>
+      </div>
+    </div>
+    <div class="col" style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div class="row" style="gap:8px">
+        <button class="ib" aria-label="Alerts" style="color:#ffb340"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="padding:0 12px 0 14px;gap:2px;height:44px">
+    <div class="row" style="gap:0;flex:1;overflow:hidden">
+      <span class="chip">1m</span><span class="chip">5m</span><span class="chip">15m</span><span class="chip on">1H</span><span class="chip">4H</span><span class="chip">1D</span>
+    </div>
+    <button class="row" style="height:30px;padding:0 12px;border-radius:15px;background:var(--s2);gap:6px;font-size:14px;font-weight:600"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M3 15c3 0 3-8 6-8s3 10 6 10 3-6 6-6"></path></svg>Indicators</button>
+  </div>
+
+  <!-- Chart -->
+  <div style="position:relative;height:392px;margin:0 0 0 0;width:390px">
+    <div style="position:absolute;left:12px;top:0;width:336px;height:380px">
+      <sc-for list="{{grid}}" as="g" hint-placeholder-count="5"><div class="gl" style="top:{{g.y}}px"></div></sc-for>
+      <sc-for list="{{candles}}" as="c" hint-placeholder-count="48">
+        <div class="cd" style="left:{{c.x}}px;top:{{c.wt}}px;height:{{c.wh}}px"><i style="background:{{c.col}}"></i><b style="top:{{c.bt}}px;height:{{c.bh}}px;background:{{c.col}}"></b></div>
+      </sc-for>
+      <svg width="336" height="380" viewBox="0 0 336 380" style="position:absolute;left:0;top:0" aria-hidden="true">
+        <path d="{{slow}}" fill="none" stroke="#0a84ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="{{fast}}" fill="none" stroke="#ffd60a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <div style="position:absolute;left:0;width:336px;top:{{alertY}}px;border-top:1.5px dashed #ff9f0a;opacity:.9"></div>
+      <div class="row num" style="position:absolute;left:0;top:{{alertTagY}}px;height:22px;padding:0 8px 0 6px;gap:5px;border-radius:0 11px 11px 0;background:#ff9f0a;color:#000;font-size:11px;font-weight:600"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:12px;height:12px;stroke-width:2.4"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path></svg>{{alertLabel}}</div>
+      <div style="position:absolute;left:0;width:336px;top:{{lastY}}px;border-top:1px dashed rgba(48,209,88,.6)"></div>
+    </div>
+    <sc-for list="{{grid}}" as="g" hint-placeholder-count="5"><div class="ax num" style="top:{{g.y}}px">{{g.label}}</div></sc-for>
+    <div class="num" style="position:absolute;left:343px;top:{{lastTagY}}px;width:46px;height:20px;border-radius:4px 0 0 4px;background:#30d158;color:#000;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">{{lastLabel}}</div>
+
+    <div style="position:absolute;left:18px;top:4px;font-size:11px;line-height:1.5" class="num">
+      <div style="color:var(--t2)">O {{o}} &nbsp;H {{h}} &nbsp;L {{l}} &nbsp;C {{cl}}</div>
+      <div class="row" style="gap:10px"><span style="color:#ffd60a">EMA 8</span><span style="color:#0a84ff">EMA 21</span><span class="bd" style="height:16px;padding:0 6px;background:rgba(48,209,88,.16);color:#43e06a;font-size:10px"><i style="width:5px;height:5px;border-radius:3px;background:#30d158;display:block"></i>LIVE</span></div>
+    </div>
+    <div class="row num" style="position:absolute;left:12px;width:336px;bottom:0;justify-content:space-between;font-size:10px;color:var(--t3)"><span>09:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span></div>
+
+    <button class="ib" aria-label="Crosshair" style="position:absolute;right:48px;bottom:34px;width:36px;height:36px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:18px;height:18px"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v5M12 16v5M3 12h5M16 12h5"></path></svg></button>
+  </div>
+
+  <!-- RSI panel -->
+  <div style="position:relative;height:106px;margin-top:2px">
+    <div style="position:absolute;left:12px;top:0;width:336px;height:98px;border-top:1px solid var(--ln)">
+      <div class="num" style="font-size:11px;color:var(--t2);padding-top:6px">RSI 14 <span style="color:#d58cf7;font-weight:600">{{rsiNow}}</span></div>
+      <div style="position:absolute;left:0;top:{{r70}}px;width:336px;border-top:1px dashed rgba(255,255,255,.14)"></div>
+      <div style="position:absolute;left:0;top:{{r30}}px;width:336px;border-top:1px dashed rgba(255,255,255,.14)"></div>
+      <svg width="336" height="70" viewBox="0 0 336 70" style="position:absolute;left:0;top:26px" aria-hidden="true"><path d="{{rsi}}" fill="none" stroke="#bf5af2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+    <div class="ax num" style="top:{{r70}}px">70</div><div class="ax num" style="top:{{r30}}px">30</div>
+  </div>
+
+  <!-- ticker -->
+  <div class="row num" style="position:absolute;left:14px;right:14px;bottom:96px;height:32px;gap:20px;padding:0 14px;border-radius:16px;background:rgba(44,44,46,.5);border:1px solid var(--ln);overflow:hidden;white-space:nowrap;font-size:12px;font-weight:500">
+    <span>GBPUSD <b style="color:#43e06a">1.30512</b></span><span>XAUUSD <b style="color:#ff6961">2650.4</b></span><span>BTCUSD <b style="color:#43e06a">67240</b></span><span>USDJPY <b style="color:#43e06a">155.30</b></span>
+  </div>
+
+  <div class="tb">
+    <button class="on"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4v3M7 17v3M17 8v3M17 18v2"></path><rect x="5" y="7" width="4" height="10" rx="1"></rect><rect x="15" y="11" width="4" height="7" rx="1"></rect></svg>Chart</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Alerts</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>AI</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"></rect><rect x="13" y="4" width="7" height="7" rx="2"></rect><rect x="4" y="13" width="7" height="7" rx="2"></rect><rect x="13" y="13" width="7" height="7" rx="2"></rect></svg>Markets</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>More</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const N = 48, W = 336, H = 370, st = W / N;
+    let s = 11; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+    let p = 1.0832; const cs = [];
+    for (let i = 0; i < N; i++) {
+      const o = p, c = o + (r() - 0.47) * 0.0008 + (i < 20 ? -0.00005 : 0.00018);
+      cs.push({ o, h: Math.max(o, c) + r() * 0.0004, l: Math.min(o, c) - r() * 0.0004, c }); p = c;
+    }
+    const hi = Math.max(...cs.map(k => k.h)), lo = Math.min(...cs.map(k => k.l));
+    const pad = (hi - lo) * 0.14, top = hi + pad, bot = lo - pad;
+    const y = v => (top - v) / (top - bot) * H;
+    const ema = n => { const a = 2 / (n + 1); let e = cs[0].c; return cs.map(k => (e = k.c * a + e * (1 - a))); };
+    const path = arr => arr.map((v, i) => (i ? 'L' : 'M') + (i * st + st / 2).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    const last = cs[N - 1], alertP = last.c + (top - last.c) * 0.5;
+    // RSI 14 (Wilder)
+    let ag = 0, al = 0; const pts = [];
+    for (let i = 1; i < N; i++) {
+      const d = cs[i].c - cs[i - 1].c, u = Math.max(d, 0), dn = Math.max(-d, 0);
+      if (i <= 14) { ag += u / 14; al += dn / 14; if (i < 14) continue; }
+      else { ag = (ag * 13 + u) / 14; al = (al * 13 + dn) / 14; }
+      pts.push([i, 100 - 100 / (1 + ag / (al || 1e-9))]);
+    }
+    const rsiPath = pts.map(([i, v], k) => (k ? 'L' : 'M') + (i * st + st / 2).toFixed(1) + ' ' + ((100 - v) / 100 * 70).toFixed(1)).join(' ');
+    const fmt = v => v.toFixed(5);
+    return {
+      candles: cs.map((k, i) => {
+        const up = k.c >= k.o;
+        return { x: (i * st + (st - 5) / 2).toFixed(1), wt: y(k.h).toFixed(1), wh: (y(k.l) - y(k.h)).toFixed(1),
+          bt: (y(Math.max(k.o, k.c)) - y(k.h)).toFixed(1), bh: Math.max(1.5, Math.abs(y(k.o) - y(k.c))).toFixed(1), col: up ? '#30d158' : '#ff453a' };
+      }),
+      grid: [0, 1, 2, 3, 4].map(k => { const v = bot + (top - bot) * k / 4; return { y: y(v).toFixed(1), label: v.toFixed(4) }; }),
+      fast: path(ema(8)), slow: path(ema(21)),
+      alertY: y(alertP).toFixed(1), alertTagY: (y(alertP) - 11).toFixed(1), alertLabel: fmt(alertP),
+      lastY: y(last.c).toFixed(1), lastTagY: (y(last.c) - 10).toFixed(1), lastLabel: last.c.toFixed(4),
+      o: fmt(last.o), h: fmt(last.h), l: fmt(last.l), cl: fmt(last.c),
+      rsi: rsiPath, rsiNow: pts[pts.length - 1][1].toFixed(1),
+      r70: (26 + 0.3 * 70).toFixed(1), r30: (26 + 0.7 * 70).toFixed(1)
+    };
+  }
+}
+</script>
+</body>
+</html>

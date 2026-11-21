@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Alerts</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--s1:#1c1c1e;--s2:#2c2c2e;--s3:#3a3a3c;--ln:rgba(255,255,255,.09);--t2:rgba(235,235,245,.62);--t3:rgba(235,235,245,.34);--bl:#0a84ff;--up:#30d158}
+*{box-sizing:border-box}
+.ph{width:390px;height:844px;background:#000;position:relative;overflow:hidden;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,"Geist",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+.ph button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
+.num{font-family:"Geist Mono","SF Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;align-items:center}
+.ib{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:rgba(44,44,46,.66);border:1px solid rgba(255,255,255,.09);flex:none}
+.seg{display:flex;background:var(--s1);border-radius:10px;padding:2px}
+.seg button{flex:1;height:32px;border-radius:8px;font-size:13px;font-weight:600;color:var(--t2)}
+.seg button.on{background:var(--s3);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.chip{height:30px;padding:0 13px;border-radius:15px;background:var(--s1);font-size:13px;font-weight:600;display:inline-flex;align-items:center;color:var(--t2);flex:none}
+.chip.on{background:#fff;color:#000}
+.tg{width:51px;height:31px;border-radius:16px;background:var(--s3);position:relative;flex:none}
+.tg:after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tg.on{background:var(--up)}.tg.on:after{left:22px}
+.tile{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.card{background:var(--s1);border-radius:22px;padding:14px}
+.bd{height:22px;padding:0 8px;border-radius:11px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.a{background:rgba(255,159,10,.16);color:#ffb340}.bu{background:rgba(10,132,255,.16);color:#4da3ff}.n{background:var(--s2);color:var(--t2)}.p{background:rgba(191,90,242,.18);color:#d58cf7}
+.tb{position:absolute;left:14px;right:14px;bottom:22px;height:66px;border-radius:33px;display:flex;padding:0 8px;align-items:center;background:rgba(44,44,46,.7);backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.09)}
+.tb button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--t2);height:54px;justify-content:center;border-radius:27px}
+.tb button.on{color:var(--bl);background:rgba(10,132,255,.14)}
+</style>
+</helmet>
+<div class="ph">
+  <div style="height:58px"></div>
+  <div class="row" style="justify-content:space-between;padding:0 16px;height:48px">
+    <div style="font-size:34px;font-weight:700;letter-spacing:-.03em">Alerts</div>
+    <div class="row" style="gap:8px"><button class="ib" aria-label="Filter"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"></path></svg></button><button class="ib" aria-label="New alert" style="background:var(--bl);border-color:transparent"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></button></div>
+  </div>
+  <div style="padding:10px 16px 0"><div class="seg"><button class="on">Active · 12</button><button>History</button></div></div>
+  <div class="row" style="gap:6px;padding:12px 16px;overflow:hidden"><span class="chip on">All</span><span class="chip">Price</span><span class="chip">Pattern</span><span class="chip">Indicator</span><span class="chip">Chains</span></div>
+
+  <div class="col" style="display:flex;flex-direction:column;gap:10px;padding:0 16px">
+
+    <div class="card" style="padding:16px">
+      <div class="row" style="gap:12px">
+        <div class="tile" style="background:rgba(191,90,242,.18);color:#d58cf7"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 6h6v5h8M5 18h6v-5"></path></svg></div>
+        <div style="flex:1"><div style="font-size:17px;font-weight:600">Breakout → Pullback → Hammer</div><div style="font-size:13px;color:var(--t2)">XAU/USD · Logic chain</div></div>
+        <button class="tg on" aria-label="Enabled"></button>
+      </div>
+      <div class="row" style="gap:6px;margin:16px 0 12px">
+        <div style="flex:1;height:5px;border-radius:3px;background:var(--up)"></div>
+        <div style="flex:1;height:5px;border-radius:3px;background:linear-gradient(90deg,#0a84ff 60%,#3a3a3c 60%)"></div>
+        <div style="flex:1;height:5px;border-radius:3px;background:var(--s3)"></div>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <div><div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--t2)">STAGE 2 OF 3</div><div style="font-size:15px;font-weight:500;margin-top:2px">Pullback to support</div></div>
+        <span class="bd bu num" style="height:26px;padding:0 10px;font-size:12px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:14px;height:14px"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>14m 32s left</span>
+      </div>
+    </div>
+
+    <div class="card row" style="gap:12px">
+      <div class="tile" style="background:rgba(10,132,255,.16);color:#4da3ff"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg></div>
+      <div style="flex:1"><div style="font-size:17px;font-weight:600">EUR/USD crosses above</div><div class="num" style="font-size:13px;color:var(--t2);margin-top:1px">1.09250 · now 1.08548</div></div>
+      <div class="col" style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><button class="tg on" aria-label="Enabled"></button><span class="bd a">Cooldown 12m</span></div>
+    </div>
+
+    <div class="card row" style="gap:12px">
+      <div class="tile" style="background:rgba(255,159,10,.16);color:#ffb340"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v3M12 17v3"></path><rect x="9" y="7" width="6" height="10" rx="1"></rect></svg></div>
+      <div style="flex:1"><div style="font-size:17px;font-weight:600">Bullish Engulfing</div><div style="font-size:13px;color:var(--t2);margin-top:1px">GBP/USD · 15m · On candle close</div></div>
+      <button class="tg on" aria-label="Enabled"></button>
+    </div>
+
+    <div class="card row" style="gap:12px">
+      <div class="tile" style="background:rgba(191,90,242,.18);color:#d58cf7"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 15c3 0 3-8 6-8s3 10 6 10 3-6 6-6"></path></svg></div>
+      <div style="flex:1"><div style="font-size:17px;font-weight:600">RSI(14) crosses below 70</div><div style="font-size:13px;color:var(--t2);margin-top:1px">BTC/USD · 1H</div></div>
+      <button class="tg on" aria-label="Enabled"></button>
+    </div>
+
+    <div class="card row" style="gap:12px;opacity:.6">
+      <div class="tile" style="background:rgba(100,210,255,.16);color:#64d2ff"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19L20 6"></path><circle cx="4" cy="19" r="1.6"></circle><circle cx="20" cy="6" r="1.6"></circle></svg></div>
+      <div style="flex:1"><div style="font-size:17px;font-weight:600">Trendline break</div><div class="num" style="font-size:13px;color:var(--t2);margin-top:1px">USD/JPY · 155.000 · Drawing-attached</div></div>
+      <button class="tg" aria-label="Disabled"></button>
+    </div>
+  </div>
+
+  <div class="tb">
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4v3M7 17v3M17 8v3M17 18v2"></path><rect x="5" y="7" width="4" height="10" rx="1"></rect><rect x="15" y="11" width="4" height="7" rx="1"></rect></svg>Chart</button>
+    <button class="on"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Alerts</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>AI</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"></rect><rect x="13" y="4" width="7" height="7" rx="2"></rect><rect x="4" y="13" width="7" height="7" rx="2"></rect><rect x="13" y="13" width="7" height="7" rx="2"></rect></svg>Markets</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>More</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

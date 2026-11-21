@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biquote Embeddable Widgets Showcase</title>
+  <!-- 1.4 KB gzipped loader loads only widgets used on page -->
+  <script src="https://widgets.biquote.io/v1/loader.js" async></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      color: #38bdf8;
+    }
+    .widget-section {
+      margin: 24px 0;
+      padding: 16px;
+      background: #1e293b;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Biquote 12-Widget Showcase</h1>
+    <p>Live MetaTrader 5 feed streaming over WebSockets without API keys.</p>
+
+    <!-- 1. Scrolling Ticker Tape -->
+    <div class="widget-section">
+      <h2>1. Live Ticker Tape</h2>
+      <div data-biquote-widget="ticker" data-symbols="EURUSD,XAUUSD,BTCUSD,ETHUSD,USDJPY,US500" data-theme="dark"></div>
+    </div>
+
+    <div class="grid-2">
+      <!-- 2. Price Card with Sparkline -->
+      <div class="widget-section">
+        <h2>2. Price Card (Gold)</h2>
+        <div data-biquote-widget="pricecard" data-symbol="XAUUSD" data-theme="dark" data-attribution="false"></div>
+      </div>
+
+      <!-- 3. Currency Converter -->
+      <div class="widget-section">
+        <h2>3. Currency Converter</h2>
+        <div data-biquote-widget="converter" data-from="USD" data-to="EUR" data-theme="dark"></div>
+      </div>
+    </div>
+
+    <!-- 4. Interactive Price Chart -->
+    <div class="widget-section">
+      <h2>4. Candlestick & Price Chart</h2>
+      <div data-biquote-widget="chart" data-symbol="BTCUSD" data-range="1D" data-theme="dark"></div>
+    </div>
+
+    <div class="grid-2">
+      <!-- 5. Market Movers -->
+      <div class="widget-section">
+        <h2>5. Market Movers</h2>
+        <div data-biquote-widget="movers" data-type="Forex" data-theme="dark"></div>
+      </div>
+
+      <!-- 6. Market Breadth -->
+      <div class="widget-section">
+        <h2>6. Market Breadth</h2>
+        <div data-biquote-widget="breadth" data-theme="dark"></div>
+      </div>
+    </div>
+
+    <!-- 7. Economic Calendar -->
+    <div class="widget-section">
+      <h2>7. Economic Calendar (54 Countries)</h2>
+      <div data-biquote-widget="calendar" data-countries="US,EU,TR,GB" data-importance="high" data-theme="dark"></div>
+    </div>
+  </div>
+</body>
+</html>

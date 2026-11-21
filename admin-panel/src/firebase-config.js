@@ -1,0 +1,1 @@
+export const firebaseConfig = {"projectId":"tenx-markets","appId":"1:768885344354:web:83ed753862575f1fcbe93b","storageBucket":"tenx-markets.firebasestorage.app","apiKey":"AIzaSyCSJMR4P9YJgLG1xugW9xUeUgkl8ynSJJY","authDomain":"tenx-markets.firebaseapp.com","messagingSenderId":"768885344354","measurementId":"G-DY257FQW2W","projectNumber":"768885344354","version":"2"};

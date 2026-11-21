@@ -1,0 +1,9 @@
+@echo off
+echo Waiting for emulator to be ready...
+adb wait-for-device
+echo Installing latest app build...
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+echo Launching AlertApp...
+adb shell am start -n com.example.alert_app/.MainActivity
+echo Done! App is now running on your emulator.
+pause

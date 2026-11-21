@@ -1,0 +1,431 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model (existing app data plus shared catalog)
+    // ===============================================================
+    //
+    // strategyCatalog/{documentId}
+    //   type: string, required; 'strategy' or 'specialist'
+    //   status: string, required; 'draft', 'published', or 'archived'
+    //   name: string, required, 1-120 characters
+    //   payload: string, required, serialized catalog object, <= 200,000 chars
+    //   schemaVersion: integer, required, currently 1
+    //   createdAt/updatedAt: timestamp, required; admin writes use request.time
+    //   createdBy/updatedBy: string, required; verified admin email
+    //   createdAt/createdBy are immutable after creation
+    //
+    // strategyCatalogHistory/{versionId}
+    //   catalogId: string, 1-180 chars; catalog document ID
+    //   type: 'strategy' or 'specialist'
+    //   action: 'created', 'updated', 'published', 'archived', or 'deleted'
+    //   name: string, 1-120 chars
+    //   payload: serialized catalog snapshot, <= 200,000 chars
+    //   status: 'draft', 'published', 'archived', or 'deleted'
+    //   schemaVersion: integer 1; recordedAt: request.time timestamp
+    //   recordedBy: verified admin's email, <= 254 chars
+    //   Events are append-only; admin client writes only.
+    //
+    // Published catalog documents are readable by signed-in app users. Admins
+    // can read drafts and archived docs, and are the only client writers.
+    //
+    // Existing collections remain as previously modeled below:
+    // users/{uid}, private user subcollections/appData/settings, adminUsers,
+    // appConfig/current and its versions.
+    // ===============================================================
+
+    // Assumed model: users/{uid} is a private profile. Subcollections contain
+    // one document per alert/history/strategy/specialist/run/setting. Record
+    // payloads are bounded JSON strings; credentials remain local-only.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(data,
+          ['uid', 'email', 'displayName', 'updatedAt'])
+        && hasOnlyAllowedFields(data,
+          ['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid == request.auth.uid
+        && data.email is string
+        && data.email.size() <= 254
+        && data.email == request.auth.token.email
+        && data.displayName is string
+        && data.displayName.size() <= 120
+        && (!('createdAt' in data) || (data.createdAt is timestamp
+          && data.createdAt == request.time))
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidAppData(data) {
+      return hasRequiredFields(data,
+          ['key', 'value', 'schemaVersion', 'updatedAt'])
+        && hasOnlyAllowedFields(data,
+          ['key', 'value', 'schemaVersion', 'updatedAt'])
+        && data.key is string
+        && data.key.size() > 0
+        && data.key.size() <= 180
+        && data.key.matches('^[A-Za-z0-9_./-]{1,180}$')
+        && data.value is string
+        && data.value.size() <= 800000
+        && data.schemaVersion is int
+        && data.schemaVersion == 1
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidRecord(data) {
+      return hasRequiredFields(data, ['id', 'payload', 'schemaVersion', 'updatedAt'])
+        && hasOnlyAllowedFields(data, ['id', 'payload', 'schemaVersion', 'updatedAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 180
+        && data.payload is string && data.payload.size() <= 800000
+        && data.schemaVersion is int && data.schemaVersion == 1
+        && data.updatedAt is timestamp && data.updatedAt == request.time;
+    }
+
+    function isValidSetting(data) {
+      return hasRequiredFields(data, ['key', 'value', 'schemaVersion', 'updatedAt'])
+        && hasOnlyAllowedFields(data, ['key', 'value', 'schemaVersion', 'updatedAt'])
+        && data.key is string && data.key.matches('^[A-Za-z0-9_./-]{1,180}$')
+        && data.value is string && data.value.size() <= 800000
+        && data.schemaVersion is int && data.schemaVersion == 1
+        && data.updatedAt is timestamp && data.updatedAt == request.time;
+    }
+
+    function createdAtUnchanged() {
+      return (!('createdAt' in resource.data) && !('createdAt' in request.resource.data))
+        || (('createdAt' in resource.data) && ('createdAt' in request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt);
+    }
+
+    // Admin records are seeded manually by a trusted operator. Clients can only
+    // read their own record and cannot grant or change admin privileges.
+    function isValidAdminRecord(data, adminUid) {
+      return data.keys().hasAll(['role', 'uid', 'email'])
+        && data.keys().hasOnly(['role', 'uid', 'email'])
+        && data.role is string
+        && data.role == 'admin'
+        && data.uid is string
+        && data.uid.size() > 0
+        && data.uid.size() <= 128
+        && data.uid == adminUid
+        && data.email is string
+        && data.email.size() > 0
+        && data.email.size() <= 254
+        && data.email == request.auth.token.email;
+    }
+
+    function isAdmin() {
+      let adminPath = /databases/$(database)/documents/adminUsers/$(request.auth.uid);
+      return isAuthenticated()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && exists(adminPath)
+        && isValidAdminRecord(get(adminPath).data, request.auth.uid);
+    }
+
+    function isValidCatalogDocument(data) {
+      return hasRequiredFields(data, [
+          'type', 'status', 'name', 'payload', 'schemaVersion',
+          'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
+        ])
+        && hasOnlyAllowedFields(data, [
+          'type', 'status', 'name', 'payload', 'schemaVersion',
+          'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
+        ])
+        && data.type is string
+        && data.type in ['strategy', 'specialist']
+        && data.status is string
+        && data.status in ['draft', 'published', 'archived']
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 120
+        && data.payload is string
+        && data.payload.size() <= 200000
+        && data.schemaVersion is int
+        && data.schemaVersion == 1
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time
+        && data.createdBy is string
+        && data.createdBy.size() >= 1
+        && data.createdBy.size() <= 254
+        && data.updatedBy is string
+        && data.updatedBy.size() >= 1
+        && data.updatedBy.size() <= 254
+        && data.updatedBy == request.auth.token.email;
+    }
+
+    function isValidCatalogCreate(data) {
+      return isValidCatalogDocument(data)
+        && data.createdAt == request.time
+        && data.createdBy == request.auth.token.email;
+    }
+
+    function catalogCreatedFieldsUnchanged() {
+      return request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    function isValidCatalogHistoryEvent(data) {
+      return hasRequiredFields(data, [
+          'catalogId', 'type', 'action', 'name', 'payload', 'status',
+          'schemaVersion', 'recordedAt', 'recordedBy'
+        ])
+        && hasOnlyAllowedFields(data, [
+          'catalogId', 'type', 'action', 'name', 'payload', 'status',
+          'schemaVersion', 'recordedAt', 'recordedBy'
+        ])
+        && data.catalogId is string
+        && data.catalogId.size() >= 1
+        && data.catalogId.size() <= 180
+        && data.catalogId.matches('^[A-Za-z0-9_-]{1,180}$')
+        && data.type is string
+        && data.type in ['strategy', 'specialist']
+        && data.action is string
+        && data.action in ['created', 'updated', 'published', 'archived', 'deleted']
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 120
+        && data.payload is string
+        && data.payload.size() <= 200000
+        && data.status is string
+        && data.status in ['draft', 'published', 'archived', 'deleted']
+        && ((data.action == 'published' && data.status == 'published')
+          || (data.action == 'archived' && data.status == 'archived')
+          || (data.action == 'deleted' && data.status == 'deleted')
+          || (data.action in ['created', 'updated']
+            && data.status in ['draft', 'published', 'archived']))
+        && data.schemaVersion is int
+        && data.schemaVersion == 1
+        && data.recordedAt is timestamp
+        && data.recordedAt == request.time
+        && data.recordedBy is string
+        && data.recordedBy.size() >= 1
+        && data.recordedBy.size() <= 254
+        && data.recordedBy == request.auth.token.email;
+    }
+
+    function isBoundedHttpsUrl(value, maxLength) {
+      return value is string
+        && value.size() <= maxLength
+        && (value == ''
+          || value.matches('^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?([/?#].*)?$'));
+    }
+
+    function isValidGlobalSettings(settings) {
+      return settings is map
+        && hasRequiredFields(settings, [
+          'llm_model', 'llm_max_output_tokens', 'llm_timeout_seconds',
+          'splash_ad_enabled', 'splash_ad_image_url', 'splash_ad_link_url',
+          'splash_ad_campaign_id', 'splash_ad_label', 'toast_bar_enabled',
+          'toast_bar_subject', 'toast_bar_tagline', 'toast_bar_link_url',
+          'toast_bar_image_url'
+        ])
+        && hasOnlyAllowedFields(settings, [
+          'llm_model', 'llm_max_output_tokens', 'llm_timeout_seconds',
+          'splash_ad_enabled', 'splash_ad_image_url', 'splash_ad_link_url',
+          'splash_ad_campaign_id', 'splash_ad_label', 'toast_bar_enabled',
+          'toast_bar_subject', 'toast_bar_tagline', 'toast_bar_link_url',
+          'toast_bar_image_url'
+        ])
+        && settings.llm_model is string
+        && settings.llm_model.size() <= 200
+        && settings.llm_max_output_tokens is int
+        && settings.llm_max_output_tokens >= 256
+        && settings.llm_max_output_tokens <= 32000
+        && settings.llm_timeout_seconds is int
+        && settings.llm_timeout_seconds >= 30
+        && settings.llm_timeout_seconds <= 300
+        && settings.splash_ad_enabled is bool
+        && isBoundedHttpsUrl(settings.splash_ad_image_url, 2048)
+        && isBoundedHttpsUrl(settings.splash_ad_link_url, 2048)
+        && settings.splash_ad_campaign_id is string
+        && settings.splash_ad_campaign_id.size() <= 120
+        && settings.splash_ad_label is string
+        && settings.splash_ad_label.size() <= 60
+        && settings.toast_bar_enabled is bool
+        && settings.toast_bar_subject is string
+        && settings.toast_bar_subject.size() <= 120
+        && settings.toast_bar_tagline is string
+        && settings.toast_bar_tagline.size() <= 240
+        && isBoundedHttpsUrl(settings.toast_bar_link_url, 2048)
+        && isBoundedHttpsUrl(settings.toast_bar_image_url, 2048)
+        && (!settings.toast_bar_enabled
+          || (settings.toast_bar_subject.size() > 0
+            && settings.toast_bar_tagline.size() > 0
+            && settings.toast_bar_link_url.size() > 0));
+    }
+
+    function isValidAppConfigDocument(data) {
+      return hasRequiredFields(data, [
+          'settings', 'templateJson', 'description', 'versionNumber',
+          'publishedAt', 'publishedBy'
+        ])
+        && hasOnlyAllowedFields(data, [
+          'settings', 'templateJson', 'description', 'versionNumber',
+          'publishedAt', 'publishedBy'
+        ])
+        && isValidGlobalSettings(data.settings)
+        && data.templateJson is string
+        && data.templateJson.size() <= 900000
+        && data.description is string
+        && data.description.size() <= 256
+        && data.versionNumber is int
+        && data.versionNumber >= 1
+        && data.publishedAt is timestamp
+        && data.publishedAt == request.time
+        && data.publishedBy is string
+        && data.publishedBy.size() <= 254
+        && data.publishedBy == request.auth.token.email;
+    }
+
+    // Admin membership is provisioned only through trusted Firebase Console or
+    // Admin SDK operations, never through a client SDK write.
+    match /adminUsers/{uid} {
+      allow get: if isAuthenticated() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // Shared strategy and specialist definitions. Reads are authenticated;
+    // non-admins can only get/list documents whose status is published. Query
+    // callers must constrain status == 'published' so Firestore can prove this.
+    match /strategyCatalog/{documentId} {
+      allow get, list: if isAuthenticated()
+        && (resource.data.status == 'published' || isAdmin());
+      allow create: if isAdmin()
+        && documentId.matches('^[A-Za-z0-9_-]{1,180}$')
+        && isValidCatalogCreate(request.resource.data);
+      allow update: if isAdmin()
+        && documentId.matches('^[A-Za-z0-9_-]{1,180}$')
+        && isValidCatalogDocument(request.resource.data)
+        && catalogCreatedFieldsUnchanged();
+      allow delete: if isAdmin()
+        && documentId.matches('^[A-Za-z0-9_-]{1,180}$');
+    }
+
+    // Append-only catalog audit snapshots. A trusted verified admin client may
+    // create an event; clients can never edit or remove an existing event.
+    match /strategyCatalogHistory/{versionId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && versionId.matches('^[A-Za-z0-9_-]{1,180}$')
+        && isValidCatalogHistoryEvent(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // One shared, app-wide settings document; appConfig/current/versions stores
+    // admin-only snapshots used by the admin console's publish/restore workflow.
+    match /appConfig/current {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin()
+        && isValidAppConfigDocument(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /versions/{versionId} {
+        allow read: if isAdmin();
+        allow create, update: if isAdmin()
+          && isValidAppConfigDocument(request.resource.data);
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && uidUnchanged()
+        && isValidUser(request.resource.data);
+      allow update: if isOwner(userId)
+        && isDocOwner()
+        && uidNotModified()
+        && isValidUser(request.resource.data)
+        && createdAtUnchanged();
+      allow delete: if false;
+
+      match /appData/{documentId} {
+        allow read: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow create: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && documentId.matches('^[A-Za-z0-9_-]{1,300}$')
+          && isValidAppData(request.resource.data);
+        allow update: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && documentId.matches('^[A-Za-z0-9_-]{1,300}$')
+          && isValidAppData(request.resource.data)
+          && request.resource.data.key == resource.data.key;
+        allow delete: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId));
+      }
+
+      match /{collectionName}/{documentId} {
+        function isSupportedRecordCollection() {
+          return collectionName in [
+            'alerts', 'alertHistory', 'aiStrategies', 'aiSpecialists',
+            'aiStrategyRuns', 'aiAnalysisHistory'
+          ];
+        }
+        function validRecordId() {
+          return documentId.matches('^[A-Za-z0-9_-]{1,300}$');
+        }
+        allow read: if isOwner(userId) && isSupportedRecordCollection()
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow create: if isOwner(userId) && isSupportedRecordCollection()
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && validRecordId() && isValidRecord(request.resource.data);
+        allow update: if isOwner(userId) && isSupportedRecordCollection()
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && validRecordId() && isValidRecord(request.resource.data)
+          && request.resource.data.id == resource.data.id;
+        allow delete: if isOwner(userId) && isSupportedRecordCollection()
+          && exists(/databases/$(database)/documents/users/$(userId));
+      }
+
+      match /settings/{documentId} {
+        allow read: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow create: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && documentId.matches('^[A-Za-z0-9_-]{1,300}$')
+          && isValidSetting(request.resource.data);
+        allow update: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && documentId.matches('^[A-Za-z0-9_-]{1,300}$')
+          && isValidSetting(request.resource.data)
+          && request.resource.data.key == resource.data.key;
+        allow delete: if isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId));
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

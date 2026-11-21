@@ -1,0 +1,37 @@
+{
+  "conditions": [],
+  "parameters": {
+    "llm_model": {
+      "defaultValue": { "value": "nvidia/nemotron-3.5-super-vl:free" },
+      "valueType": "STRING"
+    },
+    "llm_max_output_tokens": {
+      "defaultValue": { "value": "8000" },
+      "valueType": "NUMBER"
+    },
+    "llm_timeout_seconds": {
+      "defaultValue": { "value": "120" },
+      "valueType": "NUMBER"
+    },
+    "splash_ad_enabled": {
+      "defaultValue": { "value": "false" },
+      "valueType": "BOOLEAN"
+    },
+    "splash_ad_image_url": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING"
+    },
+    "splash_ad_link_url": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING"
+    },
+    "splash_ad_campaign_id": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING"
+    },
+    "splash_ad_label": {
+      "defaultValue": { "value": "Sponsored" },
+      "valueType": "STRING"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+﻿{
+  "project_info": {
+    "project_number": "768885344354",
+    "project_id": "tenx-markets",
+    "storage_bucket": "tenx-markets.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:768885344354:android:6358b5c23f785655cbe93b",
+        "android_client_info": {
+          "package_name": "com.example.alert_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "768885344354-jij7lkkvo3ltg4af0ocokl8gjdns4ukm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.alert_app",
+            "certificate_hash": "f8d0d4b7a46b143048091f9e64e5eafad71f662d"
+          }
+        },
+        {
+          "client_id": "768885344354-pspfpiveq1opvngo3kiho8ikbiatla0m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtFpQktmVereoFEMeuEmjqO_VvZgdGKYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "768885344354-pspfpiveq1opvngo3kiho8ikbiatla0m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

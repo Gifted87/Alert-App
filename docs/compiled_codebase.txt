@@ -1,0 +1,1180 @@
+
+================================================================================
+Root Directory
+================================================================================
+
+------------------------------------------------------------
+File: alert_engine_and_logic_chains.md
+------------------------------------------------------------
+# Alert Engine & Strategy Logic Chains
+
+The TenX alert engine is a financial-grade event processing system capable of evaluating stateful price level crossings, candlestick formations, technical indicator states, and multi-stage conditional strategy chains.
+
+---
+
+## 1. Alert Types & Taxonomy
+
+TenX categorizes alerts into four primary types:
+
+| Alert Type (`AlertType`) | Description | Primary Attributes |
+| :--- | :--- | :--- |
+| **`priceLevel`** | Single boundary crossing on price action. | `targetPrice`, `condition`, `previousPrice` |
+| **`candlestickPattern`** | Confirmation of a 1-to-3 bar Japanese candlestick formation. | `candlestickPattern`, `timeframe`, `triggerOnCandleClose` |
+| **`technicalIndicator`** | Threshold crosses, signal line crosses, or flips on indicators. | `indicatorConfig` (`rsi`, `macd`, `maCross`, `bollingerBands`, `stochastic`, `supertrend`) |
+| **`multiStepChain`** | Ordered sequence of multi-condition stages requiring sequential satisfaction. | `multiStepConfig` (`stages`, `timeoutMinutes`, `currentStageIndex`) |
+
+---
+
+## 2. Stateful Boundary Crossing Logic
+
+### The "Instant False Positive" Flaw in Naive Alert Systems
+Naive alert engines simply evaluate static inequalities on every incoming tick:
+$$\text{isTriggered} = P_{curr} \ge Target$$
+This causes severe operational errors:
+1. If an alert is created when the market is already above the target, it fires immediately on the very first tick.
+2. If multi-symbol cloning copies EUR/USD (~1.08) into USD/JPY (~155) or Gold (~2650), the alert immediately screams false alarms.
+
+### TenX Stateful Boundary Crossing Algorithm
+TenX enforces strict directional transition across the boundary threshold:
+
+$$\text{Baseline} = P_{prev} \neq \text{null} \ ?\ P_{prev} : P_{initial}$$
+
+* **Crosses Above:**
+  $$\text{Trigger} \iff \text{Baseline} < Target \quad \land \quad P_{curr} \ge Target$$
+* **Crosses Below:**
+  $$\text{Trigger} \iff \text{Baseline} > Target \quad \land \quad P_{curr} \le Target$$
+* **Hits Price:**
+  $$\text{Trigger} \iff |P_{curr} - Target| \le (Target \times 0.0002) \quad (\pm 2 \text{ bps tolerance})$$
+
+### Continuous State Tracking Through Cooldown
+To ensure the engine maintains continuous awareness of market trajectory, $P_{prev}$ is updated to $P_{curr}$ on **every incoming tick**, even during active cooldown deadbands. When cooldown expires, the engine knows whether price has dipped below the boundary and completed a true re-crossing.
+
+Implementation in [market_models.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/models/market_models.dart#L856-L879):
+```dart
+bool checkTrigger(double currentPrice, {DateTime? now}) {
+  if (!isActive || isPatternAlert || isIndicatorAlert || isMultiStepAlert) return false;
+  final currentTime = now ?? DateTime.now();
+  final baseline = previousPrice ?? initialPrice;
+  previousPrice = currentPrice;
+
+  // Cooldown Hysteresis Filter
+  if (cooldownMinutes > 0 && lastTriggeredAt != null) {
+    if (currentTime.difference(lastTriggeredAt!).inMinutes < cooldownMinutes) {
+      return false; // Still within cooldown deadband
+    }
+  }
+
+  bool isTriggered = false;
+  switch (condition) {
+    case AlertCondition.crossesAbove:
+      isTriggered = baseline < targetPrice && currentPrice >= targetPrice;
+      break;
+    case AlertCondition.crossesBelow:
+      isTriggered = baseline > targetPrice && currentPrice <= targetPrice;
+      break;
+    case AlertCondition.hits:
+      isTriggered = (currentPrice - targetPrice).abs() <= (targetPrice * 0.0002);
+      break;
+  }
+  return isTriggered;
+}
+```
+
+---
+
+## 3. Rearm Hysteresis & Cooldown
+
+To prevent "alarm chatter" (rapid repeated alarms when price oscillates around a boundary in high-volatility conditions), TenX alerts support customizable cooldown deadbands:
+* **`cooldownMinutes = 0` (Single Shot):** The alert rings once and immediately transitions to `isActive = false`.
+* **`cooldownMinutes > 0` (Rearmable):** The alert rings, records `lastTriggeredAt = now`, and remains `isActive = true`. For the duration of `cooldownMinutes`, further alarms are suppressed. Once the window expires, the alert re-arms and requires a fresh boundary crossing to fire again.
+
+---
+
+## 4. Multi-Step Logic Chains & Expiry Windows
+
+Multi-step logic chains allow traders to define complex trade setup sequences (e.g., *Breakout Level 1 $\rightarrow$ Pullback to Support $\rightarrow$ Bullish Hammer Confirmation*).
+
+```mermaid
+stateDiagram-v2
+    [*] --> Stage1: Alert Created
+    Stage1 --> Stage2: Stage 1 Satisfied (CompletedAt recorded)
+    Stage2 --> Stage1: Timeout Expired (Auto-Reset)
+    Stage2 --> Stage3: Stage 2 Satisfied (CompletedAt recorded)
+    Stage3 --> Stage1: Timeout Expired (Auto-Reset)
+    Stage3 --> Triggered: All Stages Satisfied!
+    Triggered --> [*]: Alarm Fired & Logged
+```
+
+### Chain Structure & Logic Operators
+* **`ChainStage`:** Contains a collection of `ChainNode` items connected via `logicOperator` (`AND` / `OR`).
+* **`ChainNode`:** Can evaluate a price level, a candlestick pattern, or a technical indicator. Supports `isNegated = true` (NOT operator) to invert the condition.
+* **Stage Timeout (`timeoutMinutes`):** Defines the maximum allowed time between the completion of Stage $N$ and Stage $N+1$. If the market does not fulfill Stage $N+1$ within this window, the entire chain automatically invalidates and resets back to Stage 1.
+* **Timeout Override (`timeoutMinutes = 0`):** Explicitly disables stage timeout, allowing the stage to wait indefinitely without expiring.
+
+### Live UI Countdown Badge
+The UI dynamically computes the remaining duration via `MultiStepConfig.timeRemaining(DateTime now)`:
+```dart
+Duration? timeRemaining(DateTime now) {
+  if (currentStageIndex == 0) return null;
+  final prev = previousStage;
+  if (prev == null || prev.completedAt == null) return null;
+
+  final limit = prev.timeoutMinutes > 0 ? prev.timeoutMinutes : timeoutMinutes;
+  if (limit <= 0) return null;
+
+  final elapsed = now.difference(prev.completedAt!);
+  final totalDuration = Duration(minutes: limit);
+  if (elapsed >= totalDuration) return Duration.zero;
+  return totalDuration - elapsed;
+}
+```
+In [alerts_list_sheet.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/alerts_list_sheet.dart#L1215-L1228), this renders as an active countdown badge:
+$$\text{"⏳ 14m 32s left"}$$
+
+---
+
+## 5. Multi-Symbol Strategy Deployment
+
+Traders can deploy a multi-step chain across multiple instruments simultaneously with a single tap. To ensure price isolation:
+1. `AlertManager.createMultiSymbolAlerts` receives `symbolPrices: Map<String, double>`.
+2. Each target instrument receives its own deeply cloned `MultiStepConfig` with symbol-prefixed stage IDs (`stg_EURUSD_...`, `stg_GBPUSD_...`).
+3. Each clone is initialized with the genuine live price of its specific currency, preventing EUR/USD prices from corrupting USD/JPY or Gold levels.
+
+---
+
+## 6. Drawing-Attached Chart Alerts
+
+When drawing technical structures on the interactive candlestick chart (horizontal support/resistance lines, trendlines, or rays):
+* Users can tap the alert bell on any active drawing to attach a price alert directly to that geometric object (`drawingId`).
+* When the user adjusts the drawing handles on the chart, `onScaleEnd` captures the updated coordinate and immediately synchronizes the alert target price in `AlertManager` and `DrawingStorageService`.
+
+
+------------------------------------------------------------
+File: android_background_service.md
+------------------------------------------------------------
+# Android Perpetual Background Service Daemon
+
+The native Android architecture ensures the TenX Terminal functions as a mission-critical financial monitor. It runs a perpetual foreground service daemon that survives app swipes, screen locks, Doze mode battery optimizations, and device restarts.
+
+---
+
+## 1. Native Service Architecture Overview
+
+```mermaid
+graph TD
+    subgraph OS_Triggers [Android System Triggers]
+        Boot[BOOT_COMPLETED / QUICKBOOT]
+        WatchdogTimer[AlarmWatchdog Repeating Timer]
+        FlutterStart[Flutter MethodChannel Start Service]
+    end
+
+    subgraph CoreService [AlertForegroundService (Kotlin)]
+        WakeLock[Partial WakeLock (CPU Active)]
+        PersistentNotif[Ongoing Notification ID 1001]
+        PollThread[Background Polling Thread (1-3s Loop)]
+        OHLCCache[In-Memory OHLC Cache (10s TTL)]
+        EvalEngine[Stateful Crossing & Indicator Evaluator]
+    end
+
+    subgraph AlarmDelivery [Alarm & Alert Delivery]
+        AudioPlayer[AlarmPlayer (Audio USAGE_ALARM / DND Bypass)]
+        FullScreenIntent[Full-Screen Alarm Intent (Wake Screen)]
+        AlarmNotif[Heads-Up Notification (ID: 2000+)]
+    end
+
+    Boot --> CoreService
+    WatchdogTimer --> CoreService
+    FlutterStart --> CoreService
+
+    CoreService --> WakeLock
+    CoreService --> PersistentNotif
+    CoreService --> PollThread
+    PollThread --> OHLCCache
+    PollThread --> EvalEngine
+
+    EvalEngine -->|Condition Triggered| AudioPlayer
+    EvalEngine -->|Condition Triggered| FullScreenIntent
+    EvalEngine -->|Condition Triggered| AlarmNotif
+```
+
+---
+
+## 2. Notification Channel Architecture & ID Segregation
+
+Android Oreo (API 26+) requires explicit notification channels. To prevent heads-up alarm popups from colliding with or dismissing the perpetual service, TenX maintains two independent channels:
+
+### Channel 1: Persistent Service Channel (`CHANNEL_ID = "ForexMarketServiceChannel"`)
+* **Importance:** `IMPORTANCE_LOW` (silent, non-intrusive).
+* **Notification ID:** `1001` (Fixed).
+* **Behavior:** Ongoing notification indicating real-time background market tracking is active. Cannot be swiped away by the user.
+
+### Channel 2: High-Priority Price Alarms (`ALARM_CHANNEL_ID = "ForexPriceAlarmChannel"`)
+* **Importance:** `IMPORTANCE_HIGH` (maximum visibility).
+* **Notification ID Range:** `ALARM_NOTIFICATION_BASE_ID = 2000 + Math.abs(title.hashCode() % 1000)`.
+* **Behavior:** Renders as a full heads-up notification card with action button `DISMISS ALARM`, overrides Do Not Disturb, and wakes the device screen.
+* **Segregation Benefit:** By isolating alarm notifications to IDs $\ge 2000$, dismissing or clearing an alarm notification never terminates or replaces the persistent service notification `1001`.
+
+---
+
+## 3. Power Management & Doze Mode WakeLocks
+
+When a device is left unattended, Android transitions into aggressive power-saving Doze modes. TenX maintains active status through:
+
+1. **Partial WakeLock:**
+   ```kotlin
+   wakeLock = powerManager.newWakeLock(
+       PowerManager.PARTIAL_WAKE_LOCK,
+       "AlertApp:PerpetualForegroundWakeLock"
+   ).apply {
+       setReferenceCounted(false)
+       acquire()
+   }
+   ```
+   Keeps the device CPU running at baseline frequency while allowing the display to remain completely off, ensuring minimal battery consumption.
+2. **Foreground Service Declaration:** Declared with Android 14+ compliant foreground service types (`dataSync`) in `AndroidManifest.xml`.
+3. **Screen Wakeup on Alarm:** When an alert fires, `AlarmPlayer.kt` temporarily acquires a full screen wakeup lock (`FLAG_KEEP_SCREEN_ON | FLAG_TURN_SCREEN_ON | FLAG_SHOW_WHEN_LOCKED`) to present the alarm interface directly on the lockscreen.
+
+---
+
+## 4. Audio Playback & Do Not Disturb (DND) Bypass
+
+Standard media audio streams (`STREAM_MUSIC`) are muted when the device is set to Do Not Disturb or Vibrate. TenX routes emergency price alarms through the Android Alarm Audio Stream:
+
+Implementation in [AlarmPlayer.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/AlarmPlayer.kt):
+```kotlin
+val audioAttributes = AudioAttributes.Builder()
+    .setUsage(AudioAttributes.USAGE_ALARM)
+    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+    .build()
+
+mediaPlayer?.apply {
+    setAudioAttributes(audioAttributes)
+    isLooping = looping
+    start()
+}
+```
+* **DND Bypass:** Android OS prioritizes `USAGE_ALARM` above all media rules, ensuring price alerts ring loudly even during active Do Not Disturb schedules.
+* **Vibrator Pattern:** Synchronized dual-burst haptic feedback (`[0, 500, 200, 500] ms`) accompanies the audio playback.
+
+---
+
+## 5. In-Memory OHLC Pre-Caching
+
+Evaluating technical indicators (e.g. 200-period EMA, Bollinger Bands, Stochastic) and candlestick patterns for multiple background alerts requires historical candle data. To eliminate serial network blocking:
+* `fetchOhlcBars(symbol, timeframe, limit)` maintains a thread-safe `ConcurrentHashMap<String, Pair<Long, JSONArray>>` cache.
+* **TTL:** 10 seconds.
+* **Pre-Caching Step:** At the start of each polling loop, all active alerts and multi-step stages are scanned to extract distinct `(symbol, timeframe)` pairs, fetching required bars concurrently before sequential rule evaluation.
+
+---
+
+## 6. Self-Healing & Boot Persistence
+
+Aggressive OEM battery management solutions (e.g., Xiaomi MIUI, Samsung OneUI, OnePlus OxygenOS) may attempt to kill background processes. TenX incorporates dual self-healing mechanisms:
+
+1. **`BootAndAlarmReceiver.kt`:**
+   * Listens for `android.intent.action.BOOT_COMPLETED`, `android.intent.action.LOCKED_BOOT_COMPLETED`, and `android.intent.action.QUICKBOOT_POWERON`.
+   * Automatically invokes `startForegroundService` immediately upon phone boot without requiring the user to manually open the app.
+2. **`AlarmWatchdog.kt`:**
+   * Registers a repeating exact alarm with `AlarmManager.setExactAndAllowWhileIdle()`.
+   * Periodically verifies that `AlertForegroundService` is actively running; if the process was killed, the watchdog restarts the service.
+
+
+------------------------------------------------------------
+File: architecture_overview.md
+------------------------------------------------------------
+# System Architecture & High-Level Design
+
+The **TenX Institutional Trading Terminal** is built on a high-reliability, zero-synthetic financial architecture designed for professional Forex, Metals, Cryptocurrencies, and Index CFD traders. It combines an ultra-fast Flutter client for interactive charting and AI analysis with a perpetual, native Android daemon that guarantees continuous 24/7 background market monitoring even when the application is swiped away or the device screen is locked.
+
+---
+
+## 1. Core Architectural Principles
+
+1. **Zero Synthetic / Mock Math:** Unlike consumer retail apps that generate random walk price ticks or synthetic pips when disconnected, TenX enforces complete data integrity. When markets are closed for the weekend or network is lost, the terminal transitions transparently into greyscale standby mode without fabricating quotes.
+2. **Dual-Runtime Execution Engine:**
+   * **Foreground Runtime (Flutter / Dart):** Renders the custom canvas 60 FPS candlestick charts, manages UI navigation, handles user interactions, runs interactive technical drawing tools, and coordinates multi-agent LLM strategy executions.
+   * **Background Runtime (Android Native / Kotlin):** A decoupled background process running inside `AlertForegroundService.kt`. Operates independently with a CPU partial wakelock, evaluating multi-step logic chains, technical indicator formulas, and candlestick patterns directly against Biquote HTTP endpoints without Flutter VM overhead.
+3. **Stateful Parity:** Mathematical indicator algorithms (Wilder's RMA, EMA smoothing, Supertrend trailing stop flips, MACD, Bollinger Bands) and alert conditions maintain strict 1:1 mathematical parity between Dart and Kotlin.
+
+---
+
+## 2. Process & Runtime Boundaries
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Trader
+    participant Flutter as Flutter Engine (Dart VM)
+    participant Prefs as Android SharedPreferences
+    participant Service as AlertForegroundService (Kotlin)
+    participant Biquote as Biquote Market Hub (ASP.NET / MT5)
+    participant Alarm as Android Alarm & Notification System
+
+    User->>Flutter: Creates Multi-Step Alert or Price Alert
+    Flutter->>Prefs: Serializes to JSON (`saved_alerts`)
+    Flutter->>Service: Invokes MethodChannel `syncAlerts`
+    Service->>Prefs: Reads `saved_alerts`
+    Note over Service: User Locks Screen / Closes App
+    loop Every Tick Interval (1-3s)
+        Service->>Biquote: GET /api/latest?symbols=...
+        Biquote-->>Service: Returns real bid, ask, mid ticks
+        Service->>Service: Evaluates directional crossings & chain nodes
+    end
+    Note over Service: Alert Condition Met!
+    Service->>Alarm: Acquires Full WakeLock, triggers AlarmPlayer & Full-Screen Intent
+    Service->>Prefs: Writes triggered state to `saved_alerts` & `saved_history`
+    Alarm-->>User: Rings high-priority alarm & wakes screen
+    User->>Flutter: Taps Notification / Opens Terminal
+    Flutter->>Prefs: Reads updated `saved_alerts` & refreshes UI
+```
+
+---
+
+## 3. Layer Breakdown
+
+### A. Presentation & Interaction Layer (`lib/screens/`, `lib/widgets/`)
+* **`SplashScreen` ([splash_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/splash_screen.dart)):** Initializes network connectivity, verifies Biquote live connectivity, preloads persistent alert state, and renders animated TenX branding.
+* **`ChartScreen` ([chart_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/chart_screen.dart)):** Main terminal screen containing the candlestick chart, timeframe switches, drawing tool palette, indicator catalog sheet, and ticker tape bar.
+* **`CandlestickChart` ([candlestick_chart.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/widgets/candlestick_chart.dart)):** High-performance `CustomPainter` rendering candles, wicks, volume histograms, indicator lines/bands, drawings, and an interactive crosshair reticle.
+* **`AnalysisScreen` ([analysis_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/analysis_screen.dart)):** Multi-agent AI reasoning console showing live agent consensus, SMC/Wyckoff agent debates, and grounding critic reviews.
+* **`AlertsListSheet` ([alerts_list_sheet.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/alerts_list_sheet.dart)):** Modal management sheet for active alerts, history log, and multi-step progress tracking with real-time countdown badges.
+* **`CreateAlertSheet` ([create_alert_sheet.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/create_alert_sheet.dart)):** Multi-tab alert configuration dialog covering price crossings, candlestick patterns, technical indicators, and multi-step logic chains.
+
+### B. Business Logic & Service Layer (`lib/services/`, `lib/models/`)
+* **`BiquoteService` ([biquote_service.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/biquote_service.dart)):** Real-time SignalR WebSocket client with automated reconnection and fallback to Biquote REST.
+* **`AlertManager` ([alert_manager.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/alert_manager.dart)):** Orchestrates alert lifecycle, manages SharedPreferences synchronization, evaluates active alerts in-app, and dispatches native alarm triggers via MethodChannels.
+* **`IndicatorCalculator` ([indicator_calculator.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/indicator_calculator.dart)):** Mathematical library for RSI, MACD, MA (EMA/SMA/WMA), Bollinger Bands, Stochastic, ATR, and Supertrend.
+* **`CandlestickDetector` ([candlestick_detector.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/candlestick_detector.dart)):** 20-pattern candlestick detection engine enforcing closed candle evaluation (`requireClosedCandle: true`).
+* **`AnalysisOrchestrator` ([analysis_orchestrator.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/analysis_orchestrator.dart)):** Coordinates the 4-stage multi-agent AI pipeline using real OHLC data from `RealMarketService`.
+
+### C. Native Android Daemon (`android/app/src/main/kotlin/com/example/alert_app/`)
+* **`AlertForegroundService` ([AlertForegroundService.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/AlertForegroundService.kt)):** Persistent Android Service with ongoing notification (ID: `1001`), background loop polling, OHLC caching, mathematical indicator computation, and stateful crossing checks.
+* **`AlarmPlayer` ([AlarmPlayer.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/AlarmPlayer.kt)):** Plays audio alerts with looping, screen wakeup flags, vibration patterns, and Do Not Disturb (DND) bypass using `AudioAttributes.USAGE_ALARM`.
+* **`AlarmWatchdog` ([AlarmWatchdog.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/AlarmWatchdog.kt)) & `BootAndAlarmReceiver` ([BootAndAlarmReceiver.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/BootAndAlarmReceiver.kt)):** Listens to system broadcasts (`BOOT_COMPLETED`, `QUICKBOOT_POWERON`) to auto-restart monitoring upon device reboot.
+
+---
+
+## 4. Bi-Directional State Synchronization
+
+Storage synchronization between Flutter and Android is maintained via SharedPreferences:
+
+| Preference Key | Type | Description |
+| :--- | :--- | :--- |
+| `saved_alerts` / `flutter.saved_alerts` | JSON Array | Active alert configurations including multi-step stages, completion timestamps, and `previousPrice` baselines. |
+| `saved_history` / `flutter.saved_history` | JSON Array | Triggered alert audit logs with trigger price, timestamp, and symbol. |
+| `KEY_ACTIVE_ALERTS` | JSON Array | Internal cache utilized by `AlertForegroundService` during polling cycles. |
+
+When either runtime modifies an alert:
+1. In Flutter: `AlertManager.saveAlerts()` serializes the alerts to JSON, updates SharedPreferences, and calls MethodChannel `syncAlerts` to immediately alert the native service.
+2. In Android: `AlertForegroundService.syncToFlutterStorage()` modifies the JSON representation, persists it back to SharedPreferences with `commit()`, ensuring that when the user switches back to the Flutter app, state is seamlessly in sync.
+
+
+------------------------------------------------------------
+File: charting_and_interactive_tools.md
+------------------------------------------------------------
+# Charting & Interactive Drawing Engine
+
+The TenX charting engine provides high-fidelity, interactive technical analysis rendering directly on Flutter's hardware-accelerated canvas via `CustomPainter`. It delivers TradingView-class touch ergonomics, sub-pixel rendering precision, and drawing-attached alerting.
+
+---
+
+## 1. Coordinate Transformation System
+
+The candlestick canvas maps non-linear financial time-series data into 2D screen coordinates:
+
+$$\text{Canvas Width} = W, \quad \text{Canvas Height} = H$$
+$$\text{Price Scale} = \frac{H - \text{padding}}{\text{MaxPrice} - \text{MinPrice}}$$
+
+* **X Coordinate Mapping:** Determined by the visible candle index, the horizontal pan offset (`_panOffset`), and the dynamic candle width (`_candleWidth`):
+  $$X_i = W - \text{PriceAxisWidth} - ((N - 1 - i) \times \text{CandleWidth}) + \text{PanOffset}$$
+* **Y Coordinate Mapping:** Inverts financial price space to canvas space (where $Y=0$ is the top edge):
+  $$Y(P) = ( \text{MaxPrice} - P ) \times \text{PriceScale} + \text{TopPadding}$$
+
+---
+
+## 2. Decoupled Crosshair Reticle Ergonomics
+
+In standard mobile charting implementations, activating crosshair mode locks the screen and freezes viewport panning. TenX implements **TradingView-style decoupled touch ergonomics**:
+
+```mermaid
+graph TD
+    Touch[User Touch Event on Chart] --> HitTest{Touch within 50px of Reticle?}
+    HitTest -->|Yes| DragReticle[Drag & Move Reticle Coordinates]
+    HitTest -->|No| PanChart[Pan Chart Viewport 2D]
+    PanChart --> ReprojectReticle[Reticle Stays Pinned to Fixed Market Time & Price]
+```
+
+### Implementation Details in [candlestick_chart.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/widgets/candlestick_chart.dart#L350-L400)
+1. **Reticle Dragging:** Touching within 50px of the crosshair reticle hub allows the user to drag and position the reticle over specific wicks and price levels.
+2. **Viewport Panning:** Touching anywhere else on the chart scrolls the viewport horizontally and vertically. The crosshair remains locked to its stored market data coordinates (`timestamp` and `price`), accurately tracking across the screen as candles move beneath it.
+3. **Single-Tap Repositioning:** Tapping any location on the canvas instantly moves the reticle to that exact candle and price level.
+
+---
+
+## 3. Technical Drawing Palette
+
+TenX features an interactive drawing toolset accessible from the floating chart toolbar:
+
+| Tool | Geometry | Key Applications |
+| :--- | :--- | :--- |
+| **Horizontal Line** | Constant $Y$ across full width | Key support and resistance levels, psychological numbers. |
+| **Trendline** | Segment between $(P_1, T_1)$ and $(P_2, T_2)$ | Dynamic trend channels, ascending/descending wedges. |
+| **Ray Line** | Origin $(P_1, T_1)$ extending infinitely through $(P_2, T_2)$ | Breakout projection, multi-session support lines. |
+| **Fibonacci Retracement** | Horizontal levels at 0.0, 0.236, 0.382, 0.500, 0.618, 0.786, 1.0 | Harmonic pullbacks, golden pocket retracements. |
+| **Rectangle** | Box spanning $[T_1, T_2] \times [P_1, P_2]$ | Order blocks, Fair Value Gaps, accumulation zones. |
+| **Vertical Line** | Constant $X$ at specific timestamp $T$ | High-impact news releases, session opens (London/NY). |
+
+### Interactive Handle Dragging & Alert Sync
+* Drawings display circular drag handles on their anchor points.
+* Tapping a drawing selects it, revealing an alert bell icon and a trash can delete icon.
+* Moving Handle 1 or Handle 2 updates the underlying mathematical geometry in real-time. Upon releasing the handle (`onScaleEnd`), the updated price coordinate is emitted and automatically syncs any attached price alerts in `AlertManager`.
+
+---
+
+## 4. Multi-Pane Indicator Visualization
+
+The chart engine supports layered technical indicators across two visual tiers:
+
+### Tier 1: Main Chart Overlays
+* **Dual Moving Averages:** Fast and Slow MAs rendered as smooth bezier curves over candle price action.
+* **Bollinger Bands:** Translucent colored fill between the upper and lower bands with a solid middle basis line.
+* **Supertrend:** Color-coded dynamic trailing stop (Green for active uptrend, Red for active downtrend) with markers on trend flips.
+
+### Tier 2: Sub-Panel Oscillators
+Indicators with independent scaling ranges render in dedicated sub-panels below the main price chart:
+* **RSI Sub-Panel:** 0-100 bounded scale with dashed lines at overbought (70), oversold (30), and centerline (50).
+* **MACD Sub-Panel:** MACD line, signal line, and color-coded positive/negative histogram bars centered on zero.
+* **Stochastic Sub-Panel:** $\%K$ (solid line) and $\%D$ (dashed line) bounded between 0 and 100 with 20/80 threshold zones.
+
+
+------------------------------------------------------------
+File: market_intelligence_tools.md
+------------------------------------------------------------
+# Market Intelligence & Macroeconomic Tools
+
+Beyond direct charting and alert tracking, TenX provides four integrated market intelligence tools designed to give operators deep macro and relative-strength situational awareness.
+
+---
+
+## 1. Currency Cross Matrix Heatmap
+
+The **Currency Cross Matrix** ([currency_matrix_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/currency_matrix_screen.dart)) is an interactive $8 \times 8$ relative strength matrix covering the G8 major currencies:
+$$\text{Currencies} = \{ \text{EUR}, \text{USD}, \text{GBP}, \text{JPY}, \text{CHF}, \text{AUD}, \text{CAD}, \text{NZD} \}$$
+
+```mermaid
+graph TD
+    subgraph MatrixInput [Live MT5 Pairs Ingestion]
+        P1[EURUSD, GBPUSD, USDJPY, AUDUSD...]
+    end
+
+    subgraph RelativeStrength [Relative Strength Engine]
+        PairwiseCalc[Compute Net Daily % Change for 28 Pairs]
+        CurrencyAggregate[Sum Weighted Performance per Currency]
+    end
+
+    subgraph VisualHeatmap [Interactive 8x8 Heatmap Display]
+        Grid[Ranked Currency Leaderboard + Heatmap Grid]
+        Divergence[Highlight Divergence: Strongest vs Weakest]
+    end
+
+    P1 --> PairwiseCalc
+    PairwiseCalc --> CurrencyAggregate
+    CurrencyAggregate --> Grid
+    CurrencyAggregate --> Divergence
+```
+
+### Relative Strength Math
+For each currency $C_i$, the net strength score $S(C_i)$ is computed by aggregating performance against all 7 counterparts:
+$$S(C_i) = \sum_{j \neq i} \Delta\%(C_i / C_j)$$
+* **Green Cells:** Positive relative outperformance (Base currency gaining against Quote).
+* **Red Cells:** Negative relative underperformance (Base currency losing against Quote).
+* **Divergence Discovery:** Enables instant identification of high-probability cross pairs (e.g., pairing the strongest currency like GBP with the weakest like JPY).
+
+---
+
+## 2. High-Impact Economic Calendar
+
+The **Economic Calendar** ([economic_calendar_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/economic_calendar_screen.dart)) tracks major macroeconomic events (interest rate decisions, CPI inflation, Non-Farm Payrolls, GDP):
+* **Impact Classification:** Color-coded badges for High (Red), Medium (Orange), and Low (Yellow) volatility risks.
+* **Consensus Comparison:**
+  * **Actual vs Forecast vs Previous:** Clear tabular representation.
+  * **Surprise Highlight:** If Actual exceeds Forecast in a dollar-positive direction, metrics render with green accents; negative surprises render in red.
+* **Currency Filtering:** Direct filter buttons to isolate USD, EUR, GBP, JPY, etc.
+* **Pre-News Alert Attachment:** One-tap alert scheduling before high-impact releases.
+
+---
+
+## 3. Market Movers & Volatility Breakouts
+
+The **Market Movers Screen** ([market_movers_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/market_movers_screen.dart)) renders real-time performance leaderboards across Forex, Metals, Cryptos, and Indices:
+* **Top Gainers:** Ranked by 24-hour percentage advance.
+* **Top Losers:** Ranked by 24-hour percentage decline.
+* **Volatility Breakouts:** Instruments experiencing sudden expansions in True Range relative to their 20-day historical mean.
+* **Direct Navigation:** Tapping any row opens the corresponding live candlestick terminal and order flow display.
+
+---
+
+## 4. Real-Time Financial News Stream
+
+The **Financial News Feed** ([financial_news_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/financial_news_screen.dart)) delivers breaking macroeconomic updates:
+* **Sentiment Tagging:** Automated sentiment flags (Bullish, Bearish, or Neutral).
+* **Asset Tagging:** Filter by asset class (`Forex`, `Crypto`, `Commodities`, `Central Banks`).
+* **Timestamp Precision:** Relative timestamps (`2m ago`, `15m ago`) with auto-refreshing polling.
+
+
+------------------------------------------------------------
+File: multi_agent_ai_pipeline.md
+------------------------------------------------------------
+# Multi-Agent AI Quantitative Strategy Pipeline
+
+TenX features an institutional-grade, 4-stage multi-agent AI quantitative reasoning pipeline. Rather than relying on a single generic LLM prompt that suffers from hallucinations and recency bias, TenX deploys specialized agents that debate, verify, and consolidate consensus trade recommendations.
+
+---
+
+## 1. Pipeline Architecture & Specialist Roles
+
+```mermaid
+graph TD
+    subgraph Stage1 [Stage 1: Real-Market Ingestion]
+        MarketData["RealMarketService (Live MT5 OHLC)"]
+        StructureCalc["MarketStructureAnalysis (EMA 50/200, Swing Points, ATR, BBW)"]
+    end
+
+    subgraph Stage2 [Stage 2: Specialist Reasoning (Parallel)]
+        SMC["SMC Structure Specialist (Break of Structure, Order Blocks, Liquidity Sweeps)"]
+        Wyckoff["Wyckoff Phase Specialist (Accumulation/Distribution, Volume Climax, Springs)"]
+        CustomSpecialist["Custom Specialist Agents (User Defined)"]
+    end
+
+    subgraph Stage3 [Stage 3: Adversarial Verification]
+        Critic["Grounding Critic (Verifies Price Claims vs Real OHLC, Penalizes Hallucinations)"]
+    end
+
+    subgraph Stage4 [Stage 4: Institutional Consensus]
+        Consolidator["Consolidator Officer (Final Trade Signal: Direction, Entry, SL, TP, Confidence)"]
+    end
+
+    MarketData --> StructureCalc
+    StructureCalc --> SMC
+    StructureCalc --> Wyckoff
+    StructureCalc --> CustomSpecialist
+
+    SMC --> Critic
+    Wyckoff --> Critic
+    CustomSpecialist --> Critic
+
+    Critic --> Consolidator
+```
+
+---
+
+## 2. Detailed Execution Stages
+
+### Stage 1: Market Data Ingestion & Structure Analytics
+Before dispatching any AI request, [RealMarketService.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/realmarket_service.dart) fetches genuine broker candles and computes objective technical structure:
+* **Trend Identification:** $EMA_{50}$ vs $EMA_{200}$ crossover and price position.
+* **Swing Highs & Lows:** 5-candle fractals identifying verified support and resistance pivot levels.
+* **Volatility & Consolidation:** 14-period ATR volatility and Bollinger Bandwidth ($BW \le 0.015$ marks compression/rangebound conditions).
+* **Candle Context:** Recent OHLC history formatted into prompt-ready tabular data.
+
+### Stage 2: Specialist Reasoning in Parallel
+Specialist agents analyze the prepared market data simultaneously:
+* **SMC Specialist:** Identifies Market Structure Breaks (MSB/BOS), Change of Character (CHoCH), Unmitigated Fair Value Gaps (FVG), and Institutional Order Blocks (OB).
+* **Wyckoff Specialist:** Classifies trading ranges into Phases (A through E), evaluates Preliminary Supply/Support (PSY), Selling/Buying Climax (SC/BC), Automatic Rallies (AR), and Springs/UTADs.
+
+### Stage 3: Adversarial Grounding Critic
+To eliminate AI hallucinations, the **Grounding Critic** audits the specialist outputs:
+1. Validates that referenced price levels actually exist within the high/low range of the supplied OHLC data.
+2. Checks whether claim of "trend" matches the calculated $EMA_{50}/EMA_{200}$ relationship.
+3. Challenges overly optimistic win probabilities and produces an adversarial critique.
+
+### Stage 4: Consolidator Officer Synthesis
+The **Consolidator Officer** evaluates the specialists' signals alongside the critic's audit to produce the final executable setup:
+* `direction`: `BUY`, `SELL`, or `WAIT`
+* `entryPrice`: Exact proposed limit/market entry
+* `stopLoss`: Invalidation price level
+* `takeProfit1` & `takeProfit2`: Realistic targets anchored to swing highs/lows
+* `riskRewardRatio`: Mathematical ratio ($\ge 1.5$)
+* `confidenceScore`: Integer between 1 and 100
+* `reasoning`: Consolidated multi-perspective thesis
+
+---
+
+## 3. Strict JSON Extraction Protocol
+
+LLMs frequently output conversational filler or preamble text around JSON blocks. TenX enforces resilient extraction via [ai_models.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/models/ai_models.dart#L125-L165):
+
+```dart
+static Map<String, dynamic> extractJson(String rawText) {
+  final clean = rawText.trim();
+
+  // 1. Try markdown code fences ```json ... ```
+  final codeBlockRegex = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```', caseSensitive: false);
+  final match = codeBlockRegex.firstMatch(clean);
+  if (match != null) {
+    final blockContent = match.group(1)?.trim();
+    if (blockContent != null && blockContent.isNotEmpty) {
+      try {
+        return jsonDecode(blockContent) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+  }
+
+  // 2. Scan for raw outer curly braces {...}
+  final firstBrace = clean.indexOf('{');
+  final lastBrace = clean.lastIndexOf('}');
+  if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+    final substring = clean.substring(firstBrace, lastBrace + 1);
+    try {
+      return jsonDecode(substring) as Map<String, dynamic>;
+    } catch (_) {}
+  }
+
+  throw const FormatException('No valid JSON structure found in LLM response');
+}
+```
+
+---
+
+## 4. Custom Strategy Builder & Persistence
+
+Traders can configure bespoke multi-agent setups via [strategies_screen.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/screens/strategies_screen.dart):
+* **Custom Prompts:** Add new specialist agents (e.g. Volume Profile Specialist, Fibonacci Harmonic Specialist, Macro Sentiment Specialist).
+* **Timeframe Bundling:** Assign dedicated analysis timeframes (e.g. Multi-Timeframe Analysis across 15M + 4H).
+* **Storage:** Strategies are serialized and persisted in SharedPreferences via `StrategyStorage.dart`. Completed analysis runs are logged with full agent transcripts into `HistoryStorage.dart`.
+
+
+------------------------------------------------------------
+File: README.md
+------------------------------------------------------------
+# TenX Institutional Trading Terminal — Documentation Suite
+
+Welcome to the comprehensive technical documentation for the **TenX Institutional Trading Terminal** (`Alert-App`). This repository contains the complete Flutter mobile application, high-frequency Biquote SignalR market data streaming client, multi-agent AI quantitative reasoning pipeline, stateful alerting engine, and native Android perpetual background alarming daemon.
+
+---
+
+## 📚 Documentation Index
+
+| Document | Description | Key Modules |
+| :--- | :--- | :--- |
+| [**1. System Architecture Overview**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/architecture_overview.md) | High-level system design, process boundaries, Flutter-Android IPC, and state management. | `main.dart`, `MainActivity.kt`, Architecture Diagrams |
+| [**2. Real-Time Market Streaming Engine**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/realtime_market_engine.md) | Biquote SignalR WebSocket streaming, REST fallback, DNS bypass, and tick aggregation. | `biquote_service.dart`, `realmarket_service.dart` |
+| [**3. Alert Engine & Logic Chains**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/alert_engine_and_logic_chains.md) | Stateful boundary crossings, rearm hysteresis cooldowns, multi-step chains, timeouts, and drawing alerts. | `alert_manager.dart`, `market_models.dart`, `AlertForegroundService.kt` |
+| [**4. Technical Indicators & Patterns**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/technical_indicators_and_patterns.md) | Mathematical formulas, Wilder RMA/EMA smoothing, candlestick pattern rules, and Dart-Kotlin parity. | `indicator_calculator.dart`, `candlestick_detector.dart` |
+| [**5. Android Perpetual Background Service**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/android_background_service.md) | Native foreground service daemon, WakeLocks, DND bypass, alarm players, watchdog, and boot receivers. | `AlertForegroundService.kt`, `AlarmPlayer.kt`, `AlarmWatchdog.kt` |
+| [**6. Multi-Agent AI Strategy Pipeline**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/multi_agent_ai_pipeline.md) | 4-stage quantitative reasoning pipeline: SMC + Wyckoff specialists, Grounding Critic, and Consolidator Officer. | `ai_service.dart`, `analysis_orchestrator.dart`, `ai_models.dart` |
+| [**7. Charting & Interactive Drawing Engine**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/charting_and_interactive_tools.md) | CustomPainter candlestick renderer, 2D viewport math, decoupled crosshair touch gestures, and drawing tools. | `candlestick_chart.dart`, `chart_screen.dart` |
+| [**8. Market Intelligence Tools**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/market_intelligence_tools.md) | Currency Cross Matrix 8x8 heatmap, high-impact Economic Calendar, Market Movers, and News sentiment. | `currency_matrix_screen.dart`, `economic_calendar_screen.dart` |
+| [**9. Testing & Deployment Guide**](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/docs/testing_and_deployment_guide.md) | Verification suites, unit tests, release APK compilation, SHA-256 verification, and local downloader server. | `test/`, `flutter build apk`, `tenx-web-downloader` |
+
+---
+
+## 🏛 High-Level System Architecture
+
+```mermaid
+graph TD
+    subgraph MarketData [Market Data Infrastructure]
+        BQ_WS["Biquote SignalR WebSocket (wss://biquote.io/hubs/tick)"]
+        BQ_REST["Biquote REST API (https://biquote.io/api/)"]
+        DNS_IP["Direct IP Fallback (142.132.248.240)"]
+    end
+
+    subgraph FlutterUI [TenX Flutter Mobile Application]
+        UI_Chart["Interactive Candlestick Chart (CustomPainter)"]
+        UI_Alerts["Alerts & Strategy Logic Chains (AlertManager)"]
+        UI_AI["Multi-Agent AI Pipeline (SMC + Wyckoff + Critic)"]
+        UI_Tools["Market Movers, Matrix, Calendar & News"]
+        BiquoteSvc["BiquoteService (Tick Stream Controller)"]
+    end
+
+    subgraph AndroidNative [Android Native Perpetual Daemon]
+        FG_Service["AlertForegroundService (Persistent Service ID: 1001)"]
+        WakeLock["Partial WakeLock (Screen-Off CPU Running)"]
+        Alarm_Player["AlarmPlayer (DND Bypass Audio Player)"]
+        Watchdog["AlarmWatchdog & BootAndAlarmReceiver"]
+        NotifMgr["NotificationManager (Alarm ID: 2000+)"]
+    end
+
+    subgraph SharedStorage [Bi-Directional State Synchronization]
+        SP_Alerts["SharedPreferences: saved_alerts"]
+        SP_History["SharedPreferences: saved_history"]
+    end
+
+    BQ_WS --> BiquoteSvc
+    BQ_REST --> BiquoteSvc
+    DNS_IP -.-> BiquoteSvc
+
+    BiquoteSvc --> UI_Chart
+    BiquoteSvc --> UI_Alerts
+    BiquoteSvc --> UI_Tools
+
+    UI_Alerts <--> SP_Alerts
+    UI_Alerts <--> SP_History
+
+    SP_Alerts <--> FG_Service
+    SP_History <--> FG_Service
+
+    BQ_REST --> FG_Service
+    DNS_IP -.-> FG_Service
+
+    FG_Service --> WakeLock
+    FG_Service --> Alarm_Player
+    FG_Service --> NotifMgr
+    Watchdog --> FG_Service
+```
+
+---
+
+## 🚀 Quick Reference & Command Cheat Sheet
+
+### Running the Flutter Application
+```bash
+# Get dependencies
+flutter pub get
+
+# Run static code analysis
+flutter analyze
+
+# Execute full automated test suite
+flutter test
+
+# Run app on connected device / emulator
+flutter run
+```
+
+### Compiling Production Release APK
+```bash
+# Clean previous build artifacts
+flutter clean
+flutter pub get
+
+# Compile optimized release APK with R8 code shrinking
+flutter build apk --release
+
+# Built APK location:
+# build/app/outputs/flutter-apk/app-release.apk
+```
+
+### Serving Web Downloader
+```bash
+# Start local distribution HTTP server on port 8088
+cd tenx-web-downloader
+python -m http.server 8088
+```
+
+
+------------------------------------------------------------
+File: realtime_market_engine.md
+------------------------------------------------------------
+# Real-Time Market Streaming Engine
+
+TenX connects directly to institutional MetaTrader 5 broker rates via **Biquote Real-Time Market Infrastructure** (`https://biquote.io`). This document details the SignalR WebSocket streaming layer, REST polling fallbacks, resilience engineering against DNS failures, and market state handling.
+
+---
+
+## 1. Streaming Infrastructure Overview
+
+* **Primary Protocol:** ASP.NET Core SignalR WebSocket Hub over WSS (`wss://biquote.io/hubs/tick`).
+* **Direct IP Fallback:** `wss://142.132.248.240/hubs/tick` with custom Host header injection.
+* **REST Snapshot Endpoints:**
+  * Quotes Snapshot: `https://biquote.io/api/latest?symbols={SYMBOLS}&allowStale=true`
+  * Historical OHLC: `https://biquote.io/api/{SYMBOL}/ohlc?interval={INTERVAL}&limit={LIMIT}`
+
+```mermaid
+graph LR
+    subgraph Client [TenX Terminal]
+        BiquoteSvc[BiquoteService]
+        IOClient[Resilient HttpClient / Host: biquote.io]
+    end
+
+    subgraph PrimaryDNS [Primary Domain Route]
+        DNS[biquote.io]
+        WS[wss://biquote.io/hubs/tick]
+        REST[https://biquote.io/api/latest]
+    end
+
+    subgraph DirectIPRoute [Resilient Direct IP Route]
+        IP[142.132.248.240]
+        DirectWS[wss://142.132.248.240/hubs/tick]
+        DirectREST[https://142.132.248.240/api/latest]
+    end
+
+    BiquoteSvc -->|Primary Attempt| DNS
+    DNS --> WS
+    DNS --> REST
+
+    BiquoteSvc -.->|DNS Failure / Timeout| IOClient
+    IOClient --> IP
+    IP --> DirectWS
+    IP --> DirectREST
+```
+
+---
+
+## 2. SignalR Protocol Specification
+
+SignalR messages use JSON framing delimited by the Record Separator character (`\x1e`, Unicode `0x001E`).
+
+### A. Handshake Protocol
+Upon establishing the underlying WebSocket connection, TenX immediately sends the SignalR protocol handshake frame:
+```json
+{"protocol":"json","version":1}
+```
+The server responds with an empty handshake acknowledgment:
+```json
+{}
+```
+
+### B. Symbol Subscription Frame (`type: 1`)
+To subscribe to real-time broker ticks for specific instruments:
+```json
+{
+  "type": 1,
+  "target": "Subscribe",
+  "arguments": [
+    ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"]
+  ]
+}
+```
+
+### C. Live Tick Broadcast Frame (`OnTick`)
+Ticks received from the hub provide sub-second bid, ask, and mid prices:
+```json
+{
+  "type": 1,
+  "target": "OnTick",
+  "arguments": [
+    {
+      "symbol": "EURUSD",
+      "bid": 1.08542,
+      "ask": 1.08554,
+      "mid": 1.08548,
+      "spread": 1.2,
+      "timestamp": "2026-10-14T00:15:32.412Z",
+      "isMarketOpen": true
+    }
+  ]
+}
+```
+
+### D. Keep-Alive Ping (`type: 6`)
+To maintain the persistent TCP connection through NAT gateways and mobile carrier proxies, TenX dispatches a periodic ping every 15 seconds:
+```json
+{"type":6}
+```
+
+---
+
+## 3. Resilience Engineering: Direct IP Fallback
+
+In mobile environments, Android emulators, and restrictive mobile ISP networks, DNS lookups for newly provisioned fintech domains may fail or be poisoned. TenX implements dual-route resilience:
+
+1. **Route 1 (Standard):** Dispatches standard HTTPS/WSS requests to `biquote.io` with a strict 3-second timeout.
+2. **Route 2 (Direct IP Bypass):** If Route 1 throws `SocketException` or times out, the engine executes an immediate fallback to `142.132.248.240`, injecting `Host: biquote.io` and configuring `badCertificateCallback = (cert, host, port) => true`.
+
+Implementation in [biquote_service.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/biquote_service.dart#L61-L88):
+```dart
+Future<dynamic> _fetchJson(String pathAndQuery) async {
+  // 1. Try primary domain first
+  try {
+    final uri = Uri.parse('$baseUrl$pathAndQuery');
+    final response = await _client.get(uri).timeout(const Duration(seconds: 3));
+    if (response.statusCode == 200) return jsonDecode(response.body);
+  } catch (_) {}
+
+  // 2. Resilient Direct IP Fallback with Host header injection
+  try {
+    final uri = Uri.parse('$directBaseUrl$pathAndQuery');
+    final req = await _ioClient.getUrl(uri).timeout(const Duration(seconds: 4));
+    req.headers.set('Host', 'biquote.io');
+    final resp = await req.close().timeout(const Duration(seconds: 4));
+    if (resp.statusCode == 200) {
+      final body = await resp.transform(utf8.decoder).join();
+      return jsonDecode(body);
+    }
+  } catch (_) {}
+
+  return null;
+}
+```
+
+---
+
+## 4. Symbol & Timeframe Normalization
+
+TenX normalizes trading symbols and timeframe identifiers across third-party sources into institutional standards:
+
+### Standard Symbol Map
+| Display Name | Canonical Code | Category | Pip Multiplier |
+| :--- | :--- | :--- | :--- |
+| **EUR/USD** | `EURUSD` | Forex Major | 10,000 |
+| **GBP/USD** | `GBPUSD` | Forex Major | 10,000 |
+| **USD/JPY** | `USDJPY` | Forex Major | 100 |
+| **USD/CHF** | `USDCHF` | Forex Major | 10,000 |
+| **USD/CAD** | `USDCAD` | Forex Major | 10,000 |
+| **AUD/USD** | `AUDUSD` | Forex Major | 10,000 |
+| **NZD/USD** | `NZDUSD` | Forex Major | 10,000 |
+| **GOLD / XAU/USD** | `XAUUSD` | Precious Metals | 10 |
+| **SILVER / XAG/USD** | `XAGUSD` | Precious Metals | 100 |
+| **OIL (WTI)** | `USOIL` | Commodities | 100 |
+| **BTC/USD** | `BTCUSD` | Cryptocurrency | 1 |
+| **ETH/USD** | `ETHUSD` | Cryptocurrency | 1 |
+| **S&P 500** | `US500` | Index CFD | 1 |
+| **NASDAQ** | `USTEC` | Index CFD | 1 |
+| **DOW JONES** | `US30` | Index CFD | 1 |
+
+### Timeframe Mapping
+| Client Notation | Canonical Interval | MT5 Equivalent | Duration |
+| :--- | :--- | :--- | :--- |
+| `1m` / `1M` | `1m` | `M1` | 1 Minute |
+| `5m` / `5M` | `5m` | `M5` | 5 Minutes |
+| `15m` / `15M` | `15m` | `M15` | 15 Minutes |
+| `30m` / `30M` | `30m` | `M30` | 30 Minutes |
+| `1h` / `1H` | `1h` | `H1` | 1 Hour |
+| `4h` / `4H` | `4h` | `H4` | 4 Hours |
+| `1d` / `1D` | `1d` | `D1` | 1 Day |
+
+---
+
+## 5. Offline & Market Closed Handling
+
+TenX rejects fabricated data:
+* **Market Close State:** If `isMarketOpen == false` (e.g. Friday 22:00 UTC to Sunday 21:00 UTC for Forex), the UI displays a `Market Closed` status pill and retains the final verified close price.
+* **Network Interruption:** If all connection attempts fail, `isOnlineNotifier.value` transitions to `false`. The chart and watchlists render in greyscale standby mode with a prominent "Network Disconnected — Tap to Reconnect" banner.
+
+
+------------------------------------------------------------
+File: technical_indicators_and_patterns.md
+------------------------------------------------------------
+# Technical Indicators & Candlestick Pattern Engine
+
+TenX includes a high-performance quantitative calculation engine implemented with strict 1:1 parity between Flutter Dart ([indicator_calculator.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/indicator_calculator.dart)) and Android Kotlin ([AlertForegroundService.kt](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/android/app/src/main/kotlin/com/example/alert_app/AlertForegroundService.kt)).
+
+---
+
+## 1. Technical Indicators Mathematical Specification
+
+### A. Relative Strength Index (RSI)
+RSI measures momentum by comparing the magnitude of recent gains to recent losses over period $N$ (default $N=14$).
+
+1. **Price Changes:**
+   $$\Delta P_t = P_t - P_{t-1}, \quad U_t = \max(\Delta P_t, 0), \quad D_t = \max(-\Delta P_t, 0)$$
+2. **Smoothing:**
+   * **Wilder's RMA (Default):**
+     $$\overline{U}_t = \frac{\overline{U}_{t-1} \times (N - 1) + U_t}{N}, \quad \overline{D}_t = \frac{\overline{D}_{t-1} \times (N - 1) + D_t}{N}$$
+   * **EMA:**
+     $$\alpha = \frac{2}{N + 1}, \quad \overline{U}_t = (U_t \times \alpha) + (\overline{U}_{t-1} \times (1 - \alpha))$$
+3. **Index Calculation:**
+   $$RS = \frac{\overline{U}_t}{\overline{D}_t}, \quad RSI = 100 - \left( \frac{100}{1 + RS} \right)$$
+* **Conditions Supported:** `crossesAboveLevel`, `crossesBelowLevel`, `crossesAboveOversold` (<30), `crossesBelowOverbought` (>70), `crossesAboveCenterline` (50), `crossesBelowCenterline` (50), `rsiTurningUp` (momentum hook), `rsiTurningDown`, `crossesAboveSignalMa`, `crossesBelowSignalMa`.
+
+---
+
+### B. Moving Average Convergence Divergence (MACD)
+Standard MACD parameters: Fast $= 12$, Slow $= 26$, Signal $= 9$.
+
+1. **MACD Line:**
+   $$MACD_t = EMA_{Fast}(P) - EMA_{Slow}(P)$$
+2. **Signal Line:**
+   $$Signal_t = EMA_{Signal}(MACD)$$
+3. **Histogram:**
+   $$Hist_t = MACD_t - Signal_t$$
+* **Conditions Supported:** `bullishSignalCross` ($MACD > Signal$), `bearishSignalCross` ($MACD < Signal$), `zeroLineCrossAbove` ($MACD > 0$), `zeroLineCrossBelow` ($MACD < 0$), `histogramFlipPositive`, `histogramFlipNegative`, `histogramTurningUp`, `histogramTurningDown`.
+
+---
+
+### C. Moving Averages & MA Crossover
+Supports EMA, SMA, and WMA across user-defined periods (e.g. 50/200 Golden Cross).
+
+* **Simple Moving Average (SMA):**
+  $$SMA_t = \frac{1}{N} \sum_{i=0}^{N-1} P_{t-i}$$
+* **Exponential Moving Average (EMA):**
+  $$\alpha = \frac{2}{N+1}, \quad EMA_t = (P_t \times \alpha) + (EMA_{t-1} \times (1 - \alpha))$$
+* **Weighted Moving Average (WMA):**
+  $$WMA_t = \frac{\sum_{i=0}^{N-1} (N - i) P_{t-i}}{\frac{N(N+1)}{2}}$$
+* **Conditions Supported:** `goldenCross` ($Fast > Slow$), `deathCross` ($Fast < Slow$), `priceCrossesAboveFast`, `priceCrossesBelowFast`, `priceCrossesAboveSlow`, `priceCrossesBelowSlow`, `priceAboveBoth`, `priceBelowBoth`, `priceBetweenMAs`.
+
+---
+
+### D. Bollinger Bands
+Parameters: Period $N = 20$, Standard Deviation Multiplier $K = 2.0$.
+
+1. **Middle Band:** $Middle_t = SMA_N(P)$
+2. **Standard Deviation:**
+   $$\sigma_t = \sqrt{\frac{1}{N} \sum_{i=0}^{N-1} (P_{t-i} - Middle_t)^2}$$
+3. **Upper & Lower Bands:**
+   $$Upper_t = Middle_t + (K \times \sigma_t), \quad Lower_t = Middle_t - (K \times \sigma_t)$$
+4. **Bandwidth & %B:**
+   $$Bandwidth_t = \frac{Upper_t - Lower_t}{Middle_t}, \quad \%B_t = \frac{P_t - Lower_t}{Upper_t - Lower_t}$$
+* **Conditions Supported:** `priceCrossesAboveUpper`, `priceCrossesBelowUpper`, `priceCrossesBelowLower`, `priceCrossesAboveLower`, `middleBandCrossAbove`, `middleBandCrossBelow`, `squeeze` ($BW \le 0.015$), `squeezeBreakout` ($BW_{prev} \le Threshold \land BW_{curr} > Threshold$), `percentBCrossesAbove80`, `percentBCrossesBelow20`.
+
+---
+
+### E. Stochastic Oscillator
+Parameters: $\%K = 14$, $\%K\text{ Slowing} = 3$, $\%D = 3$.
+
+1. **Raw Stochastic:**
+   $$Fast\%K = \frac{Close_t - \min(Low_{t-13..t})}{\max(High_{t-13..t}) - \min(Low_{t-13..t})} \times 100$$
+2. **Full $\%K$:** $SMA_{Slowing}(Fast\%K)$
+3. **Signal $\%D$:** $SMA_D(\%K)$
+* **Conditions Supported:** `bullishCross` ($\%K > \%D$), `bearishCross` ($\%K < \%D$), `bullishOversoldCross` ($\%K > \%D \land \%K \le 20$), `bearishOverboughtCross` ($\%K < \%D \land \%K \ge 80$), `kCrossesAbove50`, `kCrossesBelow50`.
+
+---
+
+### F. Supertrend
+Parameters: Period $N = 10$, Multiplier $M = 3.0$, ATR Smoothing: Wilder RMA.
+
+1. **True Range (TR):**
+   $$TR_t = \max(High_t - Low_t, |High_t - Close_{t-1}|, |Low_t - Close_{t-1}|)$$
+2. **Average True Range (ATR):** $ATR_t = RMA_N(TR)$
+3. **Basic Bands:**
+   $$BasicUpper_t = \frac{High_t + Low_t}{2} + (M \times ATR_t), \quad BasicLower_t = \frac{High_t + Low_t}{2} - (M \times ATR_t)$$
+4. **Final Bands & Ratcheting Logic:**
+   $$FinalUpper_t = (BasicUpper_t < FinalUpper_{t-1} \lor Close_{t-1} > FinalUpper_{t-1}) \ ?\ BasicUpper_t : FinalUpper_{t-1}$$
+   $$FinalLower_t = (BasicLower_t > FinalLower_{t-1} \lor Close_{t-1} < FinalLower_{t-1}) \ ?\ BasicLower_t : FinalLower_{t-1}$$
+5. **Trend Flip:**
+   $$Trend_t = \begin{cases} +1 & \text{if } Close_t > FinalUpper_{t-1} \\ -1 & \text{if } Close_t < FinalLower_{t-1} \\ Trend_{t-1} & \text{otherwise} \end{cases}$$
+* **Conditions Supported:** `bullishFlip` ($Trend_{prev} = -1 \land Trend_{curr} = 1$), `bearishFlip` ($Trend_{prev} = 1 \land Trend_{curr} = -1$), `priceCrossesAboveTrail`, `priceCrossesBelowTrail`, `priceBouncesOffTrail`, `priceDistanceGreaterThan`.
+
+---
+
+## 2. Candlestick Pattern Recognition Engine
+
+Both Flutter ([candlestick_detector.dart](file:///c:/Users/hp/Documents/Web-Projects/Alert-App/lib/services/candlestick_detector.dart)) and Android Kotlin enforce closed-candle evaluation:
+* Bar $0$ ($c0$): Latest completed, closed candle.
+* Bar $1$ ($c1$): 1 candle prior.
+* Bar $2$ ($c2$): 2 candles prior.
+
+| Pattern | Type | Geometric Detection Formula |
+| :--- | :--- | :--- |
+| **Bullish Engulfing** | Bullish Reversal | $c1.isBearish \land c0.isBullish \land c0.body > c1.body \land c0.open \le c1.close \land c0.close \ge c1.open$ |
+| **Bearish Engulfing** | Bearish Reversal | $c1.isBullish \land c0.isBearish \land c0.body > c1.body \land c0.open \ge c1.close \land c0.close \le c1.open$ |
+| **Hammer** | Bullish Reversal | $c0.body \le 0.35 \times Range \land c0.lowerShadow \ge 2 \times Body \land c0.upperShadow \le 0.15 \times Range \land (c1.isBearish \lor c0.low < c1.low)$ |
+| **Shooting Star** | Bearish Reversal | $c0.body \le 0.35 \times Range \land c0.upperShadow \ge 2 \times Body \land c0.lowerShadow \le 0.15 \times Range \land (c1.isBullish \lor c0.high > c1.high)$ |
+| **Morning Star** | Bullish Reversal | $c2.isBearish \land c2.body \ge 0.45 \times Range \land c1.body \le 0.35 \times c2.body \land c0.isBullish \land c0.close \ge (c2.close + 0.5 \times c2.body)$ |
+| **Evening Star** | Bearish Reversal | $c2.isBullish \land c2.body \ge 0.45 \times Range \land c1.body \le 0.35 \times c2.body \land c0.isBearish \land c0.close \le (c2.open + 0.5 \times c2.body)$ |
+| **Standard Doji** | Neutral / Indecision | $c0.body \le 0.08 \times Range$ |
+| **Dragonfly Doji** | Bullish Reversal | $c0.body \le 0.08 \times Range \land c0.upperShadow \le 0.12 \times Range \land c0.lowerShadow \ge 0.65 \times Range$ |
+| **Gravestone Doji** | Bearish Reversal | $c0.body \le 0.08 \times Range \land c0.lowerShadow \le 0.12 \times Range \land c0.upperShadow \ge 0.65 \times Range$ |
+| **Piercing Line** | Bullish Reversal | $c1.isBearish \land c0.isBullish \land c0.open \le c1.low \land c0.close \ge (c1.close + 0.5 \times c1.body) \land c0.close \le c1.open$ |
+| **Dark Cloud Cover** | Bearish Reversal | $c1.isBullish \land c0.isBearish \land c0.open \ge c1.high \land c0.close \le (c1.open + 0.5 \times c1.body) \land c0.close \ge c1.open$ |
+| **Three White Soldiers** | Bullish Continuation | 3 consecutive bullish bars with higher closes, opens within prior body, small upper shadows ($\le 0.25 \times Range$). |
+| **Three Black Crows** | Bearish Continuation | 3 consecutive bearish bars with lower closes, opens within prior body, small lower shadows ($\le 0.25 \times Range$). |
+| **Bullish Harami** | Bullish Reversal | $c1.isBearish \land c0.isBullish \land c0.open \ge c1.close \land c0.close \le c1.open \land c0.body < c1.body \times 0.7$ |
+| **Bearish Harami** | Bearish Reversal | $c1.isBullish \land c0.isBearish \land c0.open \le c1.close \land c0.close \ge c1.open \land c0.body < c1.body \times 0.7$ |
+| **Tweezer Bottom** | Bullish Reversal | $c1.isBearish \land c0.isBullish \land |c1.low - c0.low| \le (c1.low \times 0.00015) \land c0.lowerShadow \ge 0.3 \times Range$ |
+| **Tweezer Top** | Bearish Reversal | $c1.isBullish \land c0.isBearish \land |c1.high - c0.high| \le (c1.high \times 0.00015) \land c0.upperShadow \ge 0.3 \times Range$ |
+| **Marubozu** | Momentum Continuation | $c0.body \ge 0.88 \times Range$ (full candle body with minimal or zero wicks). |
+
+
+------------------------------------------------------------
+File: testing_and_deployment_guide.md
+------------------------------------------------------------
+# Testing, Verification & Deployment Guide
+
+This document details the automated testing methodology, static analysis gates, Android production APK compilation process, cryptographic checksum verification, and the local distribution web downloader server.
+
+---
+
+## 1. Automated Test Suite
+
+TenX maintains automated test suites covering all mathematical indicators, boundary crossing rules, multi-step chain logic, and LLM extraction protocols.
+
+### Test Execution Commands
+```bash
+# Run all project tests
+flutter test
+
+# Run individual test files
+flutter test test/engine_fixes_test.dart
+flutter test test/ai_pipeline_test.dart
+flutter test test/widget_test.dart
+```
+
+### Coverage Breakdown
+
+#### A. Alert Engine & Mathematical Fixes (`test/engine_fixes_test.dart`)
+1. **Candlestick Pattern Timing:** Confirms open forming bar (`isOpen: true`) is ignored and pattern matching evaluates confirmed closed bars (`isOpen: false`).
+2. **Step Timeout & Auto-Reset:** Confirms that if a stage exceeds `timeoutMinutes`, `config.isTimedOut(now)` returns `true` and `config.reset()` restores Stage 1.
+3. **Stage Remaining Duration:** Confirms `config.timeRemaining(now)` returns exact remaining minutes and seconds, returning `Duration.zero` once expired.
+4. **False-Positive Prevention:** Confirms an alert created when price is already above target ($P_{initial} = 1.1550, Target = 1.1500$) does **not** trigger on the first tick; requires price to dip below $1.1500$ and cross upward.
+5. **Hysteresis Cooldown & Re-Crossing:** Verifies alerts in cooldown suppress triggers, track $P_{prev}$ accurately on every tick, and only re-fire when cooldown expires and a fresh boundary transition occurs.
+6. **Multi-Currency Price Isolation:** Verifies `createMultiSymbolAlerts` assigns genuine market prices per symbol (e.g. EURUSD: 1.0850, USDJPY: 155.30, XAUUSD: 2650.00) and clones independent stage trees.
+7. **JSON Persistence Serialization:** Validates bi-directional serialization of nested multi-step stages, node operators (`OR`/`AND`), negations, and timestamps.
+
+#### B. Multi-Agent AI & Indicator Logic (`test/ai_pipeline_test.dart`)
+1. **TradingStrategy Serialization:** Verifies default agent prompts and timeframe arrays.
+2. **AgentSignal JSON Extraction:** Validates regex parsing of Markdown code blocks (` ```json ... ``` `) and raw JSON strings.
+3. **RealMarket Symbol & Timeframe Normalization:** Tests canonical code mapping (e.g. `GOLD` $\rightarrow$ `XAUUSD`, `15m` $\rightarrow$ `M15`).
+4. **RSI Bounded Calculations:** Tests Wilder RMA smoothing and confirms RSI outputs remain bounded between 0 and 100.
+5. **Pattern Detector Geometry:** Tests Bullish and Bearish Engulfing detection logic.
+
+#### C. App Smoke Test (`test/widget_test.dart`)
+1. **App Launch Smoke Test:** Verifies `TenXApp` mounts successfully without widget tree exceptions.
+
+---
+
+## 2. Static Code Analysis
+
+Before any release build, code is analyzed using the Flutter Lint standard:
+```bash
+flutter analyze
+```
+* **Acceptance Criteria:** `No issues found! (ran in X.Xs)`. Zero errors and zero warnings.
+
+---
+
+## 3. Production Release APK Compilation
+
+The production Android binary is compiled with R8 code shrinking and bytecode tree-shaking:
+
+```bash
+flutter build apk --release
+```
+
+### Build Specifications
+* **Output Path:** `build/app/outputs/flutter-apk/app-release.apk`
+* **Target OS:** Android 8.0+ (API Level 26+)
+* **Architecture:** Universal Release (arm64-v8a, armeabi-v7a, x86_64)
+* **Binary Size:** ~55.5 MB (`58,166,488 bytes`)
+
+---
+
+## 4. Cryptographic Checksum Verification
+
+To ensure binary integrity between build environments and user devices, every build is fingerprinted via SHA-256:
+
+### Computing Checksum (PowerShell)
+```powershell
+Get-FileHash "build\app\outputs\flutter-apk\app-release.apk" -Algorithm SHA256
+```
+
+### Verified Production Hash
+```
+Algorithm       Hash
+---------       ----
+SHA256          C8BA5F2307FCF96A1E95FC318B210DDCC3F697E4E0D7B32453D87936955AD06F
+```
+
+---
+
+## 5. Web Downloader Distribution Server
+
+TenX includes a standalone, responsive distribution portal located in `tenx-web-downloader/`:
+
+### Structure
+* `index.html`: Modern dark-mode web portal showcasing live features, screenshots, specifications, direct download button, and SHA-256 integrity badge.
+* `app.js`: Dynamic QR code generator using client local IP, clipboard copying for URLs and checksums.
+* `style.css`: Glassmorphism aesthetics with smooth animations.
+* `downloads/TenX-v1.0-release.apk`: Production binary target.
+
+### Serving Locally
+```powershell
+# Run from repository root
+cd tenx-web-downloader
+python -m http.server 8088
+```
+* **Local Web URL:** `http://localhost:8088`
+* **Network Download URL:** `http://<YOUR_LAN_IP>:8088/downloads/TenX-v1.0-release.apk`
+* **Verification:** Mobile devices on the same Wi-Fi network can scan the on-screen QR code to download and install the APK directly.
+

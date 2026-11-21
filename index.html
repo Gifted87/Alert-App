@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TenX — Autonomous Multi-Agent Trading</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #07090e;
+      color: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: #0f1422;
+      border: 1px solid #1c263d;
+      border-radius: 28px;
+      padding: 36px 28px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 50px rgba(0, 229, 255, 0.12);
+    }
+    .logo-container {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 18px;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 35px rgba(0, 229, 255, 0.35), 0 0 25px rgba(192, 132, 252, 0.25);
+      overflow: hidden;
+      border: 1.5px solid rgba(0, 229, 255, 0.4);
+      background: #090d16;
+    }
+    .logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .tagline {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #8da2b5;
+      margin-bottom: 8px;
+    }
+    .author-badge {
+      display: inline-block;
+      font-size: 12px;
+      color: #6b7e93;
+      margin-bottom: 24px;
+    }
+    .author-badge b {
+      color: #00e5ff;
+      font-weight: 800;
+    }
+    .features {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid #1a2336;
+      border-radius: 16px;
+      padding: 16px 18px;
+      text-align: left;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #c5d4e3;
+    }
+    .features ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .features li {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.4;
+    }
+    .features li:last-child {
+      margin-bottom: 0;
+    }
+    .btn {
+      display: block;
+      background: linear-gradient(135deg, #0066ff 0%, #00d4ff 100%);
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: 0.8px;
+      padding: 18px 24px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 102, 255, 0.45);
+      transition: transform 0.15s ease;
+      margin-bottom: 14px;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .file-info {
+      font-size: 12px;
+      color: #637b94;
+    }
+    .instruction {
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid #1c263d;
+      border-radius: 14px;
+      padding: 14px;
+      text-align: left;
+      font-size: 12px;
+      color: #8fa5ba;
+      line-height: 1.6;
+    }
+    .instruction b {
+      color: #00e5ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-container">
+      <img src="tenx_icon.png" alt="TenX Institutional Trading Terminal" class="logo-img">
+    </div>
+    <h1>TenX</h1>
+    <div class="tagline">Autonomous Multi-Agent Intelligence</div>
+    <div class="author-badge">made by <b>Gifted Braimah</b></div>
+
+    <div class="features">
+      <ul>
+        <li>📊 <b>Technical Indicators:</b> TradingView-style RSI, MACD, Bollinger Bands, Stochastic, EMA, SMA with full config dialogs & sub-panes.</li>
+        <li>⚡ <b>Multi-Agent Pipeline:</b> Parallel Specialists ➔ Grounding Critic ➔ Refinement ➔ Metareasoning Consolidator.</li>
+        <li>💡 <b>Strategy Prompt Engine:</b> Custom specialist agents with SMC & Wyckoff reasoning.</li>
+        <li>📈 <b>RealMarket Live:</b> Pure MT5 broker ticks via Biquote WebSocket.</li>
+      </ul>
+    </div>
+    
+    <a class="btn" href="/TenX.apk" download="TenX.apk">
+      ⬇️ DOWNLOAD TENX APK (UNIVERSAL)
+    </a>
+
+    <div class="file-info" style="margin-bottom: 12px;">Universal Build · Size: ~54 MB · All Android Devices</div>
+
+    <a class="btn" href="/TenX-arm64.apk" download="TenX-arm64.apk" style="background: linear-gradient(135deg, #7c3aed 0%, #00d4ff 100%); padding: 14px 20px; font-size: 14px;">
+      ⚡ DOWNLOAD FOR MODERN PHONES (ARM64 · 18.6 MB)
+    </a>
+
+    <div class="instruction">
+      <b>Installation Tip:</b><br>
+      1. If an older version is on your phone, uninstall it first.<br>
+      2. Tap <b>Download TenX APK</b> above, open the downloaded file, and tap <b>Install</b>.
+    </div>
+  </div>
+</body>
+</html>

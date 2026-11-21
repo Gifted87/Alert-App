@@ -1,0 +1,111 @@
+﻿model_id,name,parameter_count,parameter_source,context_length,http_status,latency_ms,finish_reason,total_tokens,response,error
+thinkingmachines/inkling-small:free,Thinking Machines: Inkling Small (free),12B active / 276B total,OpenRouter description,1048576,403,857,,,,thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps
+nvidia/nemotron-3.5-super-vl:free,NVIDIA: Nemotron 3.5 Super VL (free),12B active / 120B total,OpenRouter description,1000000,200,2606,length,317,"[No final content; reasoning returned] The user wants an assessment of a hypothetical trading setup:
+1. Price closes above resistance
+2. Next candle falls back below it on declining volume
+3. Answer in 1-2 sentences
+4. Say whether breakout is confirmed and why
+5. Do not invent data
+
+Key concepts:
+- Breakout confirmation typically requires price to close above resistance and ideally hold above it, often with increasing volume.
+- A ""fakeout"" or ""failed breakout"" occurs when price breaks above but then closes back below.
+- Declining volume on the breakout/retracement suggests lack of conviction.
+- Since the next candle falls back below resistance, the breakout is not confirmed; it's a failed breakout/bull trap.
+- Declining volume reinforces lack of buying interest.
+
+Constraints:
+- 1-2 sentences max.
+- No invented data (no specific prices, volumes, percentages, etc.).
+- Direct answer.
+
+Draft:
+No, the breakout is not confirmed because price failed to sustain above resistance and closed back below it, while declining volume indicates weak buying conviction. This is typically interpreted as a failed breakout or bull trap.
+
+Check sentence count: 2 sentences. Good.
+No invented data: Yes.
+Clear why: Yes.
+
+Final",
+recursive/flint-v1.0:free,Recursive: Flint (free),2.5B active / 40B total,OpenRouter description,262144,200,2873,stop,234,"No, the breakout is not confirmed. A close back below resistance on declining volume signals weak buying conviction behind the initial breakout, so the rejection is likely genuine rather than a pause within a trend.",
+thinkingmachines/inkling:free,Thinking Machines: Inkling (free),41B active / 975B total,OpenRouter description,1048576,403,147,,,,thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps
+nvidia/nemotron-3.5-lightning:free,NVIDIA: Nemotron 3.5 Lightning (free),3B active / 30B total,OpenRouter description,1000000,200,3843,length,317,"[No final content; reasoning returned] Here's a thinking process:
+
+1.  **Analyze User Input:**
+   - **Setup:** Price closes above resistance, then the next candle falls back below it on declining volume.
+   - **Task:** In 1-2 sentences, say whether the breakout is confirmed and why.
+   - **Constraint:** Do not invent data.
+   - **Key elements:** Breakout test, failure/rejection, volume decline, confirmation status.
+
+2.  **Identify Core Concept (Technical Analysis):**
+   - A breakout is typically confirmed if price closes above resistance with increased volume, and stays above.
+   - If price falls back below resistance on declining volume, it often indicates a ""false breakout"" or lack of follow-through.
+   - Declining volume on the pullback suggests waning selling pressure or that the move wasn't supported by conviction, but it also means the breakout didn't gain lasting momentum.
+   - Standard TA interpretation: A breakout that immediately fails below the level on declining volume is generally not confirmed; it's often seen as a test or rejection, indicating the resistance remains a barrier.
+
+3.  **Formulate Response (1-2 sentences):**
+   - Need to state whether confirmed or not, and why based on",
+liquid/lfm-2.5-2.6b:free,LiquidAI: LFM2.5-2.6B (free),2.6B,inferred from model name,65536,200,3211,length,311,"[No final content; reasoning returned] 1.  **Analyze the user's request:**
+    *   **Scenario:** Price closes above resistance -> Next candle falls back below it on declining volume.
+    *   **Task:** Assess if the breakout is confirmed and why.
+    *   **Constraints:** 1-2 sentences, do not invent data.
+
+2.  **Analyze the technical setup:**
+    *   *Step 1:* Price breaks above resistance (a bullish signal).
+    *   *Step 2:* The next candle closes *below* that level but with *declining volume*.
+    *   *Interpretation:* A breakout requires a sustained move above the level. If the price immediately retests or drops back below the previous resistance zone after breaking it, this suggests rejection of the new high. The falling volume indicates lack of conviction to push higher. This looks like a failure of the breakout attempt.
+
+3.  **Determine ""Confirmation"":**
+    *   Is the breakout confirmed? No. In fact, the opposite usually happens—a breakdown or consolidation. The drop below resistance on lower volume signals a loss of momentum and potential bearish reversal signal.
+
+4.  **Drafting the response (Internal Drafts):**
+    *   *Draft 1",
+nvidia/nemotron-3.5-content-safety:free,NVIDIA: Nemotron 3.5 Content Safety (free),Unknown,not published in OpenRouter catalog,128000,200,4083,stop,748,User Safety: safe,
+minimax/minimax-m3.1-flash:free,MiniMax: MiniMax M3.1 Flash (free),Unknown,not published in OpenRouter catalog,1000000,200,5099,length,501,"[No final content; reasoning returned] We need answer 1-2 sentences, assess. Price closes above resistance then next candle falls back below on declining volume. Is breakout confirmed? No, unconfirmed/failed because it fell back below resistance; declining volume perhaps weak selling? Need nuanced: Could suggest weak follow-through? But since close back below, no confirmation. Do not invent data. Need perhaps ""The breakout is not confirmed..."" One or two sentences. Ensure not overstate declining volume; declining volume on pullback may indicate lack of selling pressure, but candle fell below resistance. We can say ""It is not confirmed: the next candle closed back below resistance, negating the initial breakout. Declining volume may temper conviction, but it does not establish a breakout without a sustained close above resistance."" That's two sentences, no invented data. Is ""closed"" given? User says next candle falls back below it, not necessarily closes? Wording ""price closes above resistance, then the next candle falls back below it"" could imply price below, not explicit close. We shouldn't invent that it ""closed back below"" if only falls back below. Say ""The breakout is not confirmed because the next candle fell back below resistance, negating the initial break. Declining volume may suggest the pullback is less",
+poolside/laguna-xs-2.1:free,Poolside: Laguna XS 2.1 (free),Unknown,not published in OpenRouter catalog,262144,200,4638,length,343,"[No final content; reasoning returned] Okay, let's see. The user is asking about a hypothetical setup where the price closes above resistance, then the next candle falls back below it on declining volume. They want to know if the breakout is confirmed in 1-2 sentences, and why.
+
+First, I need to recall what a breakout confirmation typically involves. A breakout above resistance is usually confirmed if the price stays above that level and maybe shows increased volume. But here, the next candle goes back below resistance, which might indicate that the breakout isn't strong. Also, the volume is declining, which could mean less conviction.
+
+Wait, so the initial close above resistance is a breakout, but then the next candle closes below it. That's a failure to hold the breakout. Plus, declining volume on the retest suggests that there's not enough buying interest to sustain the move. So the breakout isn't confirmed because the price couldn't stay above resistance and the volume isn't supporting it.
+
+I should make sure I'm not adding any data. The key points are the close above resistance followed by a close below on lower volume. That's a classic sign of a failed breakout. So the answer would be that the breakout isn't confirmed because the price retested and failed to hold above resistance with",
+dots-studio/dots-3-note-preview:free,Dots Studio: Dots3-Note Preview (free),16B active / 280B total,OpenRouter description,512000,200,5096,length,313,"[No final content; reasoning returned] First, the user describes a hypothetical setup: the price closes above resistance, but then the next candle falls back below it on declining volume. I need to assess whether the breakout is confirmed in 1-2 sentences, and I must not invent data.
+
+Key points from the scenario:
+- Price closes above resistance: This is a potential breakout.
+- Next candle falls back below resistance: This suggests a rejection or failure.
+- Declining volume: Volume is decreasing, which might indicate low conviction.
+
+In technical analysis, a breakout is confirmed when the price sustains above resistance, often with increasing volume. If the price falls back below resistance, especially on declining volume, it might indicate that the breakout was false or not strong enough.
+
+Declining volume during the fall back below resistance could mean that sellers are not aggressive, but it might also mean that there's little buying interest to support the breakout. Typically, a breakout confirmation requires a close above resistance and possibly a retest that holds. Here, the immediate fall back below resistance on the next candle suggests that the breakout failed.
+
+I should base my answer on common principles without inventing data. The user says ""do not invent data,"" so I'll stick to the given information.
+
+My response should be in 1-2 sentences",
+google/gemma-4-31b-it:free,Google: Gemma 4 31B (free),31B,inferred from model name,262144,429,828,,,,Provider returned error
+poolside/laguna-s-2.1:free,Poolside: Laguna S 2.1 (free),8B active / 118B total,OpenRouter description,262144,200,2607,stop,126,"The breakout is not confirmed. A single candle falling back below resistance on declining volume suggests weak buying pressure and potential failure of the breakout, as the price failed to sustain above the key level.",
+google/lyria-3-pro-preview,Google: Lyria 3 Pro Preview,Unknown,not published in OpenRouter catalog,1048576,200,1806,content_filter,119,"The breakout is not confirmed. It is likely a false breakout (or ""bull trap"") because the price failed to hold above the resistance level and the subsequent drop occurred on declining volume, indicating a lack of strong buying pressure to sustain the upward move.",
+nvidia/nemotron-3-ultra-550b-a55b:free,NVIDIA: Nemotron 3 Ultra (free),55B active / 550B total,OpenRouter description,1000000,200,4952,stop,181,"The breakout is **not confirmed**. A valid breakout requires price to hold above the level, and a immediate reclaim of the resistance zone on the very next candle—especially on declining volume, which signals a lack of selling pressure but also a lack of buying conviction—classifies the move as a failed breakout or bull trap.",
+cohere/north-mini-code:free,Cohere: North Mini Code (free),3B active / 30B total,OpenRouter description,256000,200,3377,stop,217,"The breakout is not confirmed because the price immediately rejected the level and closed below resistance on declining volume, suggesting insufficient buying pressure to sustain the move.",
+google/gemma-4-26b-a4b-it:free,Google: Gemma 4 26B A4B  (free),26B,inferred from model name,262144,429,4316,,,,Provider returned error
+google/lyria-3-clip-preview,Google: Lyria 3 Clip Preview,Unknown,not published in OpenRouter catalog,1048576,400,3108,,,,Provider returned error
+nvidia/nemotron-3-super-120b-a12b:free,NVIDIA: Nemotron 3 Super (free),12B,OpenRouter description,262144,404,2949,,,,Provider returned error
+xingchen-agi/xing4.0-29b-a4b:free,XingChen: Xing4.0 29B A4B (free),4B active / 29B total,OpenRouter description,262144,200,7286,,,,
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,NVIDIA: Nemotron 3 Nano Omni (free),30B,inferred from model name,256000,200,6961,stop,270,The breakout is not confirmed; the price’s immediate pull‑back below the resistance on declining volume shows weak follow‑through and suggests the move was likely a false breakout.,
+openrouter/free,Free Models Router,Unknown,not published in OpenRouter catalog,200000,200,4039,length,317,"[No final content; reasoning returned] Here's a thinking process:
+
+1.  **Analyze User Input:**
+   - **Setup:** Price closes above resistance, then the next candle falls back below it on declining volume.
+   - **Task:** In 1-2 sentences, say whether the breakout is confirmed and why.
+   - **Constraint:** Do not invent data.
+   - **Key elements:** Breakout test, failure/rejection, volume context, confirmation status.
+
+2.  **Identify Core Concept (Technical Analysis):**
+   - A breakout is typically ""confirmed"" if price stays above the resistance level, ideally with sustained volume or follow-through.
+   - A ""false breakout"" or ""failed breakout"" occurs when price moves above resistance but quickly reverses, especially on declining volume, suggesting lack of conviction.
+   - Declining volume on the pullback often indicates weak selling pressure or that the breakout lacked strong institutional/retail support, making the failure more likely or the breakout less reliable.
+
+3.  **Formulate Response (1-2 sentences):**
+   - Need to state whether it's confirmed or not, and why based on the given clues (falling back below + declining volume).
+   - Standard TA interpretation: This pattern is typically",

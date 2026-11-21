@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Market Movers</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--s1:#1c1c1e;--s2:#2c2c2e;--s3:#3a3a3c;--ln:rgba(255,255,255,.09);--t2:rgba(235,235,245,.62);--t3:rgba(235,235,245,.34);--bl:#0a84ff;--up:#30d158;--dn:#ff453a}
+*{box-sizing:border-box}
+.ph{width:390px;height:844px;background:#000;position:relative;overflow:hidden;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,"Geist",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+.ph button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
+.num{font-family:"Geist Mono","SF Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;align-items:center}
+.seg{display:flex;background:var(--s1);border-radius:10px;padding:2px}
+.seg button{flex:1;height:32px;border-radius:8px;font-size:13px;font-weight:600;color:var(--t2)}
+.seg button.on{background:var(--s3);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.chip{height:30px;padding:0 13px;border-radius:15px;background:var(--s1);font-size:13px;font-weight:600;display:inline-flex;align-items:center;color:var(--t2);flex:none}
+.chip.on{background:#fff;color:#000}
+.rw{display:flex;align-items:center;gap:12px;height:62px;padding:0 14px;border-bottom:1px solid var(--ln)}
+.rw:last-child{border-bottom:0}
+.tile{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;font-size:11px;font-weight:700}
+.tb{position:absolute;left:14px;right:14px;bottom:22px;height:66px;border-radius:33px;display:flex;padding:0 8px;align-items:center;background:rgba(44,44,46,.7);backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.09)}
+.tb button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--t2);height:54px;justify-content:center;border-radius:27px}
+.tb button.on{color:var(--bl);background:rgba(10,132,255,.14)}
+</style>
+</helmet>
+<div class="ph">
+  <div style="height:58px"></div>
+  <div class="row" style="justify-content:space-between;padding:0 16px;height:48px">
+    <div style="font-size:34px;font-weight:700;letter-spacing:-.03em">Movers</div>
+    <span class="num" style="font-size:12px;color:var(--t2)">24h</span>
+  </div>
+  <div style="padding:8px 16px 0"><div class="seg"><button class="on">Gainers</button><button>Losers</button><button>Volatility</button></div></div>
+  <div class="row" style="gap:6px;padding:12px 16px 0;overflow:hidden"><span class="chip on">All</span><span class="chip">Forex</span><span class="chip">Metals</span><span class="chip">Crypto</span><span class="chip">Indices</span></div>
+
+  <div class="row" style="margin:12px 16px 0;padding:12px 14px;border-radius:20px;background:linear-gradient(135deg,rgba(255,159,10,.2),var(--s1));border:1px solid rgba(255,159,10,.25);gap:12px">
+    <div class="tile" style="background:rgba(255,159,10,.2);color:#ffb340"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 12h3l2-6 4 12 2-6h5"></path></svg></div>
+    <div style="flex:1"><div style="font-size:11px;font-weight:600;letter-spacing:.09em;color:#ffb340">VOLATILITY BREAKOUT</div><div style="font-size:16px;font-weight:600;margin-top:1px">XAU/USD · 2.4× ATR(20)</div></div>
+    <svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:16px;height:16px;color:var(--t3)"><path d="M9 6l6 6-6 6"></path></svg>
+  </div>
+
+  <div style="margin:12px 16px 0;background:var(--s1);border-radius:22px;overflow:hidden">
+    <sc-for list="{{items}}" as="s" hint-placeholder-count="7">
+      <div class="rw">
+        <span class="num" style="width:16px;font-size:13px;color:var(--t3);font-weight:600">{{s.rank}}</span>
+        <div class="tile" style="background:{{s.bg}};color:{{s.fg}}">{{s.ini}}</div>
+        <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">{{s.name}}</div><div class="num" style="font-size:12px;color:var(--t2)">{{s.price}}</div></div>
+        <svg viewBox="0 0 56 22" width="56" height="22" aria-hidden="true"><path d="{{s.d}}" fill="none" stroke="#30d158" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <div class="num" style="min-width:68px;height:30px;border-radius:9px;background:rgba(48,209,88,.16);color:#43e06a;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center">{{s.chg}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div class="tb">
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4v3M7 17v3M17 8v3M17 18v2"></path><rect x="5" y="7" width="4" height="10" rx="1"></rect><rect x="15" y="11" width="4" height="7" rx="1"></rect></svg>Chart</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Alerts</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>AI</button>
+    <button class="on"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"></rect><rect x="13" y="4" width="7" height="7" rx="2"></rect><rect x="4" y="13" width="7" height="7" rx="2"></rect><rect x="13" y="13" width="7" height="7" rx="2"></rect></svg>Markets</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>More</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const spark = seed => {
+      let s = seed; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      let v = 11; const pts = [];
+      for (let i = 0; i < 14; i++) { v += (r() - 0.38) * 4; pts.push(v); }
+      const mn = Math.min(...pts), mx = Math.max(...pts);
+      return pts.map((q, i) => (i ? 'L' : 'M') + (1 + i * 54 / 13).toFixed(1) + ' ' + (20 - (q - mn) / (mx - mn || 1) * 18).toFixed(1)).join(' ');
+    };
+    const bl = ['rgba(10,132,255,.18)', '#4da3ff'], am = ['rgba(255,159,10,.18)', '#ffb340'], pu = ['rgba(191,90,242,.18)', '#d58cf7'], tl = ['rgba(100,210,255,.16)', '#64d2ff'];
+    const mk = (rank, name, ini, t, price, chg, seed) => ({ rank, name, ini, price, chg, bg: t[0], fg: t[1], d: spark(seed) });
+    return { items: [
+      mk(1, 'Ethereum', 'ETH', pu, '2 584.10', '+3.84%', 4),
+      mk(2, 'Bitcoin', 'BTC', pu, '67 240.5', '+1.42%', 9),
+      mk(3, 'NZD/USD', 'NZ', bl, '0.61420', '+0.54%', 13),
+      mk(4, 'Nasdaq 100', 'NDX', tl, '20 412.8', '+0.47%', 18),
+      mk(5, 'GBP/USD', 'GB', bl, '1.30512', '+0.21%', 22),
+      mk(6, 'S&P 500', '500', tl, '5842.3', '+0.31%', 27),
+      mk(7, 'Silver', 'XAG', am, '31.482', '+0.18%', 33)
+    ] };
+  }
+}
+</script>
+</body>
+</html>

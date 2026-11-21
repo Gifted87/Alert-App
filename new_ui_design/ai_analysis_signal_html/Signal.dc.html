@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Analysis Signal</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--s1:#1c1c1e;--s2:#2c2c2e;--s3:#3a3a3c;--ln:rgba(255,255,255,.09);--t2:rgba(235,235,245,.62);--t3:rgba(235,235,245,.34);--bl:#0a84ff;--up:#30d158;--dn:#ff453a;--pu:#bf5af2}
+*{box-sizing:border-box}
+.ph{width:390px;height:844px;background:#000;position:relative;overflow:hidden;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,"Geist",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+.ph button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
+.num{font-family:"Geist Mono","SF Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;align-items:center}
+.card{background:var(--s1);border-radius:22px;padding:14px 16px}
+.lv{display:flex;align-items:center;height:42px;border-bottom:1px solid var(--ln);gap:10px}
+.lv:last-child{border-bottom:0}
+.lv i{width:8px;height:8px;border-radius:4px;display:block;flex:none}
+.bd{height:22px;padding:0 8px;border-radius:11px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;white-space:nowrap}
+.tb{position:absolute;left:14px;right:14px;bottom:22px;height:66px;border-radius:33px;display:flex;padding:0 8px;align-items:center;background:rgba(44,44,46,.7);backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.09)}
+.tb button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--t2);height:54px;justify-content:center;border-radius:27px}
+.tb button.on{color:var(--bl);background:rgba(10,132,255,.14)}
+</style>
+</helmet>
+<div class="ph">
+  <div style="position:absolute;left:-60px;right:-60px;top:-140px;height:420px;background:radial-gradient(closest-side,rgba(48,209,88,.22),rgba(0,0,0,0))"></div>
+  <div style="height:58px"></div>
+  <div class="row" style="justify-content:space-between;padding:0 16px;height:44px;position:relative">
+    <div class="row" style="gap:10px"><button aria-label="Back" style="width:34px;height:34px;border-radius:17px;background:rgba(44,44,46,.66);display:flex;align-items:center;justify-content:center"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M15 6l-6 6 6 6"></path></svg></button><span style="font-size:17px;font-weight:600">EUR/USD · 15m + 4H</span></div>
+    <span class="bd" style="background:rgba(191,90,242,.18);color:#d58cf7">SMC + Wyckoff</span>
+  </div>
+
+  <div style="padding:14px 16px 0;position:relative;display:flex;flex-direction:column;gap:10px">
+    <div class="card row" style="gap:18px;padding:16px 18px">
+      <div style="width:104px;height:104px;border-radius:50%;background:conic-gradient(#30d158 0 78%,#2c2c2e 0);display:flex;align-items:center;justify-content:center;flex:none"><div style="width:84px;height:84px;border-radius:50%;background:var(--s1);display:flex;flex-direction:column;align-items:center;justify-content:center"><span class="num" style="font-size:30px;font-weight:600;letter-spacing:-.04em">78</span><span style="font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--t2)">CONFIDENCE</span></div></div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:600;letter-spacing:.1em;color:var(--t2)">SIGNAL</div><div style="font-size:44px;font-weight:700;letter-spacing:-.04em;color:#43e06a;line-height:1.05">BUY</div><div class="num" style="font-size:13px;color:var(--t2);margin-top:2px">Risk : Reward 1 : 2.0</div></div>
+    </div>
+
+    <div class="card" style="padding:4px 16px">
+      <div class="lv"><i style="background:#0a84ff"></i><span style="flex:1;font-size:15px">Entry</span><span class="num" style="font-size:16px;font-weight:600">1.08720</span></div>
+      <div class="lv"><i style="background:var(--dn)"></i><span style="flex:1;font-size:15px">Stop loss</span><span class="num" style="font-size:16px;font-weight:600;color:#ff6961">1.08410</span><span class="num" style="font-size:12px;color:var(--t2);width:60px;text-align:right">−31.0p</span></div>
+      <div class="lv"><i style="background:var(--up)"></i><span style="flex:1;font-size:15px">Take profit 1</span><span class="num" style="font-size:16px;font-weight:600;color:#43e06a">1.09340</span><span class="num" style="font-size:12px;color:var(--t2);width:60px;text-align:right">+62.0p</span></div>
+      <div class="lv"><i style="background:var(--up);opacity:.5"></i><span style="flex:1;font-size:15px">Take profit 2</span><span class="num" style="font-size:16px;font-weight:600;color:#43e06a">1.09710</span><span class="num" style="font-size:12px;color:var(--t2);width:60px;text-align:right">+99.0p</span></div>
+    </div>
+
+    <div class="row" style="gap:10px">
+      <div class="card" style="flex:1;padding:12px 14px"><div class="row" style="gap:6px;font-size:12px;color:var(--t2)"><i style="width:7px;height:7px;border-radius:4px;background:var(--pu);display:block"></i>SMC</div><div class="num" style="font-size:22px;font-weight:600;margin-top:2px">74</div></div>
+      <div class="card" style="flex:1;padding:12px 14px"><div class="row" style="gap:6px;font-size:12px;color:var(--t2)"><i style="width:7px;height:7px;border-radius:4px;background:#ffd60a;display:block"></i>Wyckoff</div><div class="num" style="font-size:22px;font-weight:600;margin-top:2px">68</div></div>
+      <div class="card" style="flex:1;padding:12px 14px"><div class="row" style="gap:6px;font-size:12px;color:var(--t2)"><i style="width:7px;height:7px;border-radius:4px;background:#64d2ff;display:block"></i>Critic</div><div class="num" style="font-size:22px;font-weight:600;margin-top:2px;color:#ffb340">−4</div></div>
+    </div>
+
+    <div class="card" style="padding:12px 16px">
+      <div class="row" style="gap:8px;margin-bottom:6px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:18px;height:18px;color:#64d2ff"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg><b style="font-size:14px;font-weight:600">Grounding critic</b><span class="bd" style="background:rgba(48,209,88,.16);color:#43e06a;margin-left:auto">5 / 6 verified</span></div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.45">One support level cited at 1.0801 sits outside the supplied range and was removed. Trend claim matches EMA 50 &gt; 200.</div>
+    </div>
+  </div>
+
+  <div class="row" style="position:absolute;left:16px;right:16px;bottom:100px;gap:10px">
+    <button style="height:50px;padding:0 18px;border-radius:15px;background:var(--s2);font-size:15px;font-weight:600">Save</button>
+    <button class="row" style="flex:1;height:50px;border-radius:15px;background:var(--bl);font-size:16px;font-weight:600;justify-content:center;gap:8px"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Set alerts at levels</button>
+  </div>
+
+  <div class="tb">
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4v3M7 17v3M17 8v3M17 18v2"></path><rect x="5" y="7" width="4" height="10" rx="1"></rect><rect x="15" y="11" width="4" height="7" rx="1"></rect></svg>Chart</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>Alerts</button>
+    <button class="on"><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>AI</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"></rect><rect x="13" y="4" width="7" height="7" rx="2"></rect><rect x="4" y="13" width="7" height="7" rx="2"></rect><rect x="13" y="13" width="7" height="7" rx="2"></rect></svg>Markets</button>
+    <button><svg class="ic" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>More</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
